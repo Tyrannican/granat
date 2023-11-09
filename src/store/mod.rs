@@ -1,7 +1,6 @@
-use anyhow::{Result, Error, anyhow};
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+pub mod general;
 
 pub type KVPair = (String, String);
 
@@ -12,6 +11,7 @@ pub enum EntryValue {
     I32(i32),
     I64(i64),
     I128(i128),
+    F32(f32),
     String(String)
 }
 
@@ -27,6 +27,12 @@ impl EntryValue {
             return Self::I64(v);
         } else if let Ok(v) = value.as_ref().parse::<i128>() {
             return Self::I128(v);
+        } else if let Ok(v) = value.as_ref().parse::<f32>() {
+            if v <= f32::MAX {
+                return Self::F32(v)
+            } else {
+                return Self::String(value.as_ref().to_string());
+            }
         } else {
             return Self::String(value.as_ref().to_string());
         }
@@ -35,19 +41,22 @@ impl EntryValue {
     pub fn as_string(&self) -> String {
         match self {
             Self::I8(v) => {
-                return format!("{v}");
+                return v.to_string();
             }
             Self::I16(v) => {
-                return format!("{v}");
+                return v.to_string();
             }
             Self::I32(v) => {
-                return format!("{v}");
+                return v.to_string();
             }
             Self::I64(v) => {
-                return format!("{v}");
+                return v.to_string();
             }
             Self::I128(v) => {
-                return format!("{v}");
+                return v.to_string();
+            }
+            Self::F32(v) => {
+                return v.to_string();
             }
             Self::String(v) => {
                 return v.to_string();
@@ -56,88 +65,8 @@ impl EntryValue {
     }
 }
 
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct GeneralStore {
-    pub store: HashMap<String, EntryValue>
-}
-
-impl GeneralStore {
-    pub fn new() -> Self {
-        Self {
-            store: HashMap::new()
-        }
-    }
-
-    pub fn set(&mut self, kv: KVPair) -> Result<()> {
-        let (key, value) = kv;
-        let insert_value = EntryValue::convert(value);
-        self.store.insert(key, insert_value);
-
-        Ok(())
-    }
-
-    pub fn set_multiple(&mut self, kvs: Vec<KVPair>) -> Result<()> {
-        for kv in kvs.into_iter() {
-            let (key, value) = kv;
-            let insert_value = EntryValue::convert(value);
-            self.store.insert(key, insert_value);
-        }
-
-        Ok(())
-    }
-
-    pub fn safe_set(&mut self, kv: KVPair) -> Result<()> {
-        let (key, value) = kv;
-        match self.store.get(&key) {
-            Some(_) => {},
-            None => {
-                let insert_value = EntryValue::convert(value);
-                self.store.insert(key, insert_value);
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn safe_set_multiple(&mut self, kvs: Vec<KVPair>) -> Result<()> {
-        for kv in kvs.into_iter() {
-            let (key, value) = kv;
-            match self.store.get(&key) {
-                Some(_) => {},
-                None => {
-                    let insert_value = EntryValue::convert(value);
-                    self.store.insert(key, insert_value);
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn get(&self, key: String) -> Option<String> {
-        if let Some(value) = self.store.get(&key) {
-            return Some(value.as_string());
-        }
-
-        return None;
-    }
-
-    pub fn get_multiple(&self, keys: Vec<String>) -> Vec<Option<String>> {
-        return keys.into_iter()
-            .map(|k| {
-                if let Some(value) = self.store.get(&k) {
-                    return Some(value.as_string());
-                }
-
-                return None;
-            })
-            .collect::<Vec<Option<String>>>();
-    }
-}
-
 #[cfg(test)]
-mod store_tests {
+mod entry_value_tests {
     use super::*;
 
     #[test]
@@ -147,6 +76,7 @@ mod store_tests {
         let nm = "100000".to_string();
         let lg = "3000000000".to_string();
         let hg = "170131183460469231731687303".to_string();
+        let f_32 = "12.72".to_string();
         let s = "I am a string".to_string();
 
         let sm_v = EntryValue::convert(sm);
@@ -164,6 +94,9 @@ mod store_tests {
         let hg_v = EntryValue::convert(hg);
         assert_eq!(hg_v, EntryValue::I128(170131183460469231731687303));
 
+        let f_32_v = EntryValue::convert(f_32);
+        assert_eq!(f_32_v, EntryValue::F32(12.72));
+
         let s_v = EntryValue::convert(s);
         assert_eq!(s_v, EntryValue::String("I am a string".to_string()));
     }
@@ -175,6 +108,7 @@ mod store_tests {
         let nm_v = EntryValue::I32(100_000);
         let lg_v = EntryValue::I64(3000000000);
         let hg_v = EntryValue::I128(170131183460469231731687303);
+        let f32_v = EntryValue::F32(12.72);
         let s_v = EntryValue::String("I am a string".to_string());
 
         let sm = sm_v.as_string();
@@ -182,6 +116,7 @@ mod store_tests {
         let nm = nm_v.as_string();
         let lg = lg_v.as_string();
         let hg = hg_v.as_string();
+        let f_32 = f32_v.as_string();
         let s = s_v.as_string();
 
         assert_eq!(sm, "12".to_string());
@@ -189,6 +124,7 @@ mod store_tests {
         assert_eq!(nm, "100000".to_string());
         assert_eq!(lg, "3000000000".to_string());
         assert_eq!(hg, "170131183460469231731687303".to_string());
+        assert_eq!(f_32, "12.72".to_string());
         assert_eq!(s, "I am a string".to_string());
     }
 }
