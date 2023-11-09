@@ -1,5 +1,3 @@
-# Granat (Garnet)
+# Granat
 
-It's [Rubin](https://github.com/tyrannican/rubin) in Go!
-
-Just for fun.
+A rewrite of Rubin with a bit more thought
