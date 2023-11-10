@@ -65,9 +65,4 @@ mod entry_value_tests {
         assert_eq!(nve_float.as_string(), "-987654.32".to_string());
         assert_eq!(string.as_string(), "i should be a string".to_string());
     }
-
-    #[test]
-    fn size_test() {
-
-    }
 }
