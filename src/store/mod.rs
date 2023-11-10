@@ -6,33 +6,17 @@ pub type KVPair = (String, String);
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub enum EntryValue {
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
-    I128(i128),
-    F32(f32),
+    Integer(i64),
+    Float(f64),
     String(String)
 }
 
 impl EntryValue {
     pub fn convert(value: impl AsRef<str>) -> Self {
-        if let Ok(v) = value.as_ref().parse::<i8>() {
-            return Self::I8(v);
-        } else if let Ok(v) = value.as_ref().parse::<i16>() {
-            return Self::I16(v);
-        } else if let Ok(v) = value.as_ref().parse::<i32>() {
-            return Self::I32(v);
-        } else if let Ok(v) = value.as_ref().parse::<i64>() {
-            return Self::I64(v);
-        } else if let Ok(v) = value.as_ref().parse::<i128>() {
-            return Self::I128(v);
-        } else if let Ok(v) = value.as_ref().parse::<f32>() {
-            if v <= f32::MAX {
-                return Self::F32(v)
-            } else {
-                return Self::String(value.as_ref().to_string());
-            }
+        if let Ok(v) = value.as_ref().parse::<i64>() {
+            return Self::Integer(v);
+        } else if let Ok(v) = value.as_ref().parse::<f64>() {
+            return Self::Float(v);
         } else {
             return Self::String(value.as_ref().to_string());
         }
@@ -40,27 +24,9 @@ impl EntryValue {
 
     pub fn as_string(&self) -> String {
         match self {
-            Self::I8(v) => {
-                return v.to_string();
-            }
-            Self::I16(v) => {
-                return v.to_string();
-            }
-            Self::I32(v) => {
-                return v.to_string();
-            }
-            Self::I64(v) => {
-                return v.to_string();
-            }
-            Self::I128(v) => {
-                return v.to_string();
-            }
-            Self::F32(v) => {
-                return v.to_string();
-            }
-            Self::String(v) => {
-                return v.to_string();
-            }
+            Self::Integer(i) => return i.to_string(),
+            Self::Float(f) => return f.to_string(),
+            Self::String(s) => return s.to_string()
         }
     }
 }
@@ -71,60 +37,37 @@ mod entry_value_tests {
 
     #[test]
     fn create_entry_value() {
-        let sm = "12".to_string();
-        let md = "412".to_string();
-        let nm = "100000".to_string();
-        let lg = "3000000000".to_string();
-        let hg = "170131183460469231731687303".to_string();
-        let f_32 = "12.72".to_string();
-        let s = "I am a string".to_string();
+        let pve_number = EntryValue::convert("1234567");
+        let pve_float = EntryValue::convert("123456.23");
+        let nve_number = EntryValue::convert("-123376898355");
+        let nve_float = EntryValue::convert("-49875286.87");
+        let string = EntryValue::convert("i am a string value");
 
-        let sm_v = EntryValue::convert(sm);
-        assert_eq!(sm_v, EntryValue::I8(12));
 
-        let md_v = EntryValue::convert(md);
-        assert_eq!(md_v, EntryValue::I16(412));
-
-        let nm_v = EntryValue::convert(nm);
-        assert_eq!(nm_v, EntryValue::I32(100_000));
-
-        let lg_v = EntryValue::convert(lg);
-        assert_eq!(lg_v, EntryValue::I64(3000000000));
-
-        let hg_v = EntryValue::convert(hg);
-        assert_eq!(hg_v, EntryValue::I128(170131183460469231731687303));
-
-        let f_32_v = EntryValue::convert(f_32);
-        assert_eq!(f_32_v, EntryValue::F32(12.72));
-
-        let s_v = EntryValue::convert(s);
-        assert_eq!(s_v, EntryValue::String("I am a string".to_string()));
+        assert_eq!(pve_number, EntryValue::Integer(1234567));
+        assert_eq!(pve_float, EntryValue::Float(123456.23));
+        assert_eq!(nve_number, EntryValue::Integer(-123376898355));
+        assert_eq!(nve_float, EntryValue::Float(-49875286.87));
+        assert_eq!(string, EntryValue::String("i am a string value".to_string()));
     }
 
     #[test]
     fn convert_entry_value_back_to_string() {
-        let sm_v = EntryValue::I8(12);
-        let md_v = EntryValue::I16(412);
-        let nm_v = EntryValue::I32(100_000);
-        let lg_v = EntryValue::I64(3000000000);
-        let hg_v = EntryValue::I128(170131183460469231731687303);
-        let f32_v = EntryValue::F32(12.72);
-        let s_v = EntryValue::String("I am a string".to_string());
+        let pve_number = EntryValue::Integer(1234567);
+        let pve_float = EntryValue::Float(123456.78);
+        let nve_number = EntryValue::Integer(-9876543);
+        let nve_float = EntryValue::Float(-987654.32);
+        let string = EntryValue::String("i should be a string".to_string());
 
-        let sm = sm_v.as_string();
-        let md = md_v.as_string();
-        let nm = nm_v.as_string();
-        let lg = lg_v.as_string();
-        let hg = hg_v.as_string();
-        let f_32 = f32_v.as_string();
-        let s = s_v.as_string();
+        assert_eq!(pve_number.as_string(), "1234567".to_string());
+        assert_eq!(pve_float.as_string(), "123456.78".to_string());
+        assert_eq!(nve_number.as_string(), "-9876543".to_string());
+        assert_eq!(nve_float.as_string(), "-987654.32".to_string());
+        assert_eq!(string.as_string(), "i should be a string".to_string());
+    }
 
-        assert_eq!(sm, "12".to_string());
-        assert_eq!(md, "412".to_string());
-        assert_eq!(nm, "100000".to_string());
-        assert_eq!(lg, "3000000000".to_string());
-        assert_eq!(hg, "170131183460469231731687303".to_string());
-        assert_eq!(f_32, "12.72".to_string());
-        assert_eq!(s, "I am a string".to_string());
+    #[test]
+    fn size_test() {
+
     }
 }

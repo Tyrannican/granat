@@ -1,4 +1,4 @@
-use anyhow::{Result, Error, anyhow};
+use anyhow::{Result, anyhow};
 use serde::{Serialize, Deserialize};
 
 use std::collections::HashMap;
@@ -82,4 +82,49 @@ impl GeneralStore {
             })
             .collect::<Vec<Option<String>>>();
     }
+
+    pub fn increment(&mut self, key: String, incr: i64) -> Result<String> {
+        if let Some(value) = self.store.get_mut(&key) {
+            match value {
+                EntryValue::Integer(i) => {
+                    *i += incr;
+                },
+                _ => {
+                    eprintln!("cannot increment non-integer value");
+                    return Err(anyhow!("cannot increment non-integer value"));
+                }
+            }
+
+            return Ok(value.as_string());
+        }
+
+        let initial_value = 0 + incr;
+        self.store.insert(key, EntryValue::Integer(initial_value));
+        return Ok(initial_value.to_string());
+    }
+
+    pub fn increment_float(&mut self, key: String, incr: f64) -> Result<String> {
+        if let Some(value) = self.store.get_mut(&key) {
+            match value {
+                EntryValue::Float(i) => {
+                    *i += incr;
+                },
+                _ => {
+                    eprintln!("cannot increment non-integer value");
+                    return Err(anyhow!("cannot increment non-integer value"));
+                }
+            }
+
+            return Ok(value.as_string());
+        }
+
+        let initial_value = 0. + incr;
+        self.store.insert(key, EntryValue::Float(initial_value));
+        return Ok(initial_value.to_string());
+    }
+}
+
+#[cfg(test)]
+mod general_store_tests {
+    use super::*;
 }
