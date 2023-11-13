@@ -3,64 +3,51 @@ use serde::{Serialize, Deserialize};
 
 use std::collections::HashMap;
 
-use crate::store::{EntryValue, KVPair};
+use crate::store::{EntryValue, StoreMode, KVPair};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GeneralStore {
-    pub store: HashMap<String, EntryValue>
+    pub store: HashMap<String, EntryValue>,
+
+    #[serde(skip)]
+    pub mode: StoreMode
 }
 
 impl GeneralStore {
     pub fn new() -> Self {
         Self {
-            store: HashMap::new()
+            store: HashMap::new(),
+            mode: StoreMode::default()
         }
+    }
+
+    pub fn mode(&mut self, mode: StoreMode) {
+        self.mode = mode;
     }
 
     pub fn set(&mut self, kv: KVPair) -> Result<()> {
         let (key, value) = kv;
+        if self.store.get(&key).is_some() && self.mode == StoreMode::Safe {
+            return Ok(());
+        }
+
         let insert_value = EntryValue::convert(value);
         self.store.insert(key, insert_value);
 
-        Ok(())
+        return Ok(());
     }
 
     pub fn set_multiple(&mut self, kvs: Vec<KVPair>) -> Result<()> {
         for kv in kvs.into_iter() {
             let (key, value) = kv;
+            if self.store.get(&key).is_some() && self.mode == StoreMode::Safe {
+                return Ok(());
+            }
+
             let insert_value = EntryValue::convert(value);
             self.store.insert(key, insert_value);
         }
-
-        Ok(())
-    }
-
-    pub fn safe_set(&mut self, kv: KVPair) -> Result<()> {
-        let (key, value) = kv;
-        match self.store.get(&key) {
-            Some(_) => {},
-            None => {
-                let insert_value = EntryValue::convert(value);
-                self.store.insert(key, insert_value);
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn safe_set_multiple(&mut self, kvs: Vec<KVPair>) -> Result<()> {
-        for kv in kvs.into_iter() {
-            let (key, value) = kv;
-            match self.store.get(&key) {
-                Some(_) => {},
-                None => {
-                    let insert_value = EntryValue::convert(value);
-                    self.store.insert(key, insert_value);
-                }
-            }
-        }
-
-        Ok(())
+        return Ok(());
     }
 
     pub fn get(&self, key: String) -> Option<String> {
@@ -188,11 +175,12 @@ mod general_store_tests {
     #[test]
     fn safe_set() {
         let mut gs = GeneralStore::new();
+        gs.mode(StoreMode::Safe);
 
-        let _ = gs.safe_set(create_kv("test", "original"));
+        let _ = gs.set(create_kv("test", "original"));
         assert_eq!(gs.get("test".to_string()), Some("original".to_string()));
 
-        let _ = gs.safe_set(create_kv("test", "newer"));
+        let _ = gs.set(create_kv("test", "newer"));
         assert_eq!(gs.get("test".to_string()), Some("original".to_string()));
     }
 
@@ -211,8 +199,9 @@ mod general_store_tests {
             create_kv("orange", "no replace:#![warn()]"),
         ];
 
-        let _ = gs.safe_set_multiple(originals);
-        let _ = gs.safe_set_multiple(replacements);
+        gs.mode(StoreMode::Safe);
+        let _ = gs.set_multiple(originals);
+        let _ = gs.set_multiple(replacements);
 
         assert_eq!(gs.get("banana".to_string()), Some("pie".to_string()));
         assert_eq!(gs.get("apple".to_string()), Some("55".to_string()));
