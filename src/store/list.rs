@@ -27,10 +27,16 @@ impl ListStore {
         };
     }
 
-    pub fn mode(&mut self, mode: StoreMode) {
-        self.mode = mode;
+    pub fn safe_mode(&mut self) {
+        self.mode = StoreMode::Safe;
     }
 
+    pub fn normal_mode(&mut self) {
+        self.mode = StoreMode::Normal;
+    }
+
+    // Refactor this cause it sucks
+    // Just do an add left or add right
     pub fn push(&mut self, kv: KVPair, dir: ListDirection) -> Result<()> {
         let (key, value) = kv;
         let inner_list = match self.store.get_mut(&key) {

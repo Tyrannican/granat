@@ -32,7 +32,7 @@ impl GeneralStore {
     pub fn set(&mut self, kv: KVPair) -> Result<()> {
         let (key, value) = kv;
         if self.store.get(&key).is_some() && self.mode == StoreMode::Safe {
-            return Err(anyhow!("cannot set values in safe mode"));
+            return Err(anyhow!("cannot overwrite values in safe mode"));
         }
 
         let insert_value = EntryValue::convert(value);
@@ -45,7 +45,7 @@ impl GeneralStore {
         for kv in kvs.into_iter() {
             let (key, value) = kv;
             if self.store.get(&key).is_some() && self.mode == StoreMode::Safe {
-                return Err(anyhow!("cannot set values in safe mode"));
+                return Err(anyhow!("cannot overwrite values in safe mode"));
             }
 
             let insert_value = EntryValue::convert(value);
