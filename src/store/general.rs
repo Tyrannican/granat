@@ -21,14 +21,18 @@ impl GeneralStore {
         }
     }
 
-    pub fn mode(&mut self, mode: StoreMode) {
-        self.mode = mode;
+    pub fn safe_mode(&mut self) {
+        self.mode = StoreMode::Safe;
+    }
+
+    pub fn normal_mode(&mut self) {
+        self.mode = StoreMode::Normal;
     }
 
     pub fn set(&mut self, kv: KVPair) -> Result<()> {
         let (key, value) = kv;
         if self.store.get(&key).is_some() && self.mode == StoreMode::Safe {
-            return Ok(());
+            return Err(anyhow!("cannot set values in safe mode"));
         }
 
         let insert_value = EntryValue::convert(value);
@@ -41,7 +45,7 @@ impl GeneralStore {
         for kv in kvs.into_iter() {
             let (key, value) = kv;
             if self.store.get(&key).is_some() && self.mode == StoreMode::Safe {
-                return Ok(());
+                return Err(anyhow!("cannot set values in safe mode"));
             }
 
             let insert_value = EntryValue::convert(value);
@@ -77,7 +81,6 @@ impl GeneralStore {
                     *i += incr;
                 },
                 _ => {
-                    eprintln!("cannot increment non-integer value");
                     return Err(anyhow!("cannot increment non-integer value"));
                 }
             }
@@ -97,7 +100,6 @@ impl GeneralStore {
                     *i += incr;
                 },
                 _ => {
-                    eprintln!("cannot increment non-integer value");
                     return Err(anyhow!("cannot increment non-integer value"));
                 }
             }
@@ -175,8 +177,7 @@ mod general_store_tests {
     #[test]
     fn safe_set() {
         let mut gs = GeneralStore::new();
-        gs.mode(StoreMode::Safe);
-
+        gs.safe_mode();
         let _ = gs.set(create_kv("test", "original"));
         assert_eq!(gs.get("test".to_string()), Some("original".to_string()));
 
@@ -199,7 +200,7 @@ mod general_store_tests {
             create_kv("orange", "no replace:#![warn()]"),
         ];
 
-        gs.mode(StoreMode::Safe);
+        gs.safe_mode();
         let _ = gs.set_multiple(originals);
         let _ = gs.set_multiple(replacements);
 
