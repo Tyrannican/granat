@@ -3,7 +3,8 @@ use serde::{Serialize, Deserialize};
 
 use std::collections::HashMap;
 
-use crate::store::{EntryValue, StoreMode, KVPair};
+use crate::store::{StoreMode, KVPair};
+use crate::store::entry::EntryValue;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GeneralStore {

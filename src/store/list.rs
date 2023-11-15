@@ -1,7 +1,8 @@
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
-use crate::store::{EntryValue, StoreMode, KVPair};
+use crate::store::{StoreMode, KVPair};
+use crate::store::entry::EntryValue;
 
 use std::collections::{HashMap, LinkedList};
 
