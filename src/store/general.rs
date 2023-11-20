@@ -57,7 +57,7 @@ impl GeneralStore {
 
     pub fn get(&self, key: String) -> Option<String> {
         if let Some(v) = self.store.get(&key) {
-            return Some(v.value.as_string());
+            return Some(v.value.to_string());
         }
 
         return None;
@@ -68,7 +68,7 @@ impl GeneralStore {
             .into_iter()
             .map(|k| {
                 if let Some(v) = self.store.get(&k) {
-                    return Some(v.value.as_string());
+                    return Some(v.value.to_string());
                 }
 
                 return None;
@@ -88,7 +88,7 @@ impl GeneralStore {
                 }
             }
 
-            return Ok(v.value.as_string());
+            return Ok(v.value.to_string());
         }
 
         let initial_value = 0 + incr;
@@ -108,7 +108,7 @@ impl GeneralStore {
                 }
             }
 
-            return Ok(v.value.as_string());
+            return Ok(v.value.to_string());
         }
 
         let initial_value = 0. + incr;

@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use self::entry::Entry;
+
 pub mod entry;
 pub mod general;
 pub mod list;

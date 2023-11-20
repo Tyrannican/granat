@@ -17,12 +17,14 @@ impl EntryValue {
             return Self::String(value.as_ref().to_string());
         }
     }
+}
 
-    pub fn as_string(&self) -> String {
+impl std::fmt::Display for EntryValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Integer(i) => return i.to_string(),
-            Self::Float(f) => return f.to_string(),
-            Self::String(s) => return s.to_string(),
+            Self::Integer(i) => return write!(f, "{}", i.to_string()),
+            Self::Float(fl) => return write!(f, "{}", fl.to_string()),
+            Self::String(s) => return write!(f, "{}", s.to_string()),
         }
     }
 }
@@ -44,6 +46,12 @@ impl Entry {
     pub fn expiry(mut self, expiry_time: u64) -> Self {
         self.expiry = Some(expiry_time);
         return self;
+    }
+}
+
+impl std::fmt::Display for Entry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value.to_string())
     }
 }
 
@@ -77,11 +85,11 @@ mod entry_tests {
         let nve_float = EntryValue::Float(-987654.32);
         let string = EntryValue::String("i should be a string".to_string());
 
-        assert_eq!(pve_number.as_string(), "1234567".to_string());
-        assert_eq!(pve_float.as_string(), "123456.78".to_string());
-        assert_eq!(nve_number.as_string(), "-9876543".to_string());
-        assert_eq!(nve_float.as_string(), "-987654.32".to_string());
-        assert_eq!(string.as_string(), "i should be a string".to_string());
+        assert_eq!(pve_number.to_string(), "1234567".to_string());
+        assert_eq!(pve_float.to_string(), "123456.78".to_string());
+        assert_eq!(nve_number.to_string(), "-9876543".to_string());
+        assert_eq!(nve_float.to_string(), "-987654.32".to_string());
+        assert_eq!(string.to_string(), "i should be a string".to_string());
     }
 
     #[test]
