@@ -1,24 +1,24 @@
-use anyhow::{Result, anyhow};
-use serde::{Serialize, Deserialize};
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 
-use crate::store::{StoreMode, KVPair};
 use crate::store::entry::EntryValue;
+use crate::store::{KVPair, StoreMode};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GeneralStore {
     pub store: HashMap<String, EntryValue>,
 
     #[serde(skip)]
-    pub mode: StoreMode
+    pub mode: StoreMode,
 }
 
 impl GeneralStore {
     pub fn new() -> Self {
         Self {
             store: HashMap::new(),
-            mode: StoreMode::default()
+            mode: StoreMode::default(),
         }
     }
 
@@ -64,7 +64,8 @@ impl GeneralStore {
     }
 
     pub fn get_multiple(&self, keys: Vec<String>) -> Vec<Option<String>> {
-        return keys.into_iter()
+        return keys
+            .into_iter()
             .map(|k| {
                 if let Some(value) = self.store.get(&k) {
                     return Some(value.as_string());
@@ -80,7 +81,7 @@ impl GeneralStore {
             match value {
                 EntryValue::Integer(i) => {
                     *i += incr;
-                },
+                }
                 _ => {
                     return Err(anyhow!("cannot increment non-integer value"));
                 }
@@ -99,7 +100,7 @@ impl GeneralStore {
             match value {
                 EntryValue::Float(i) => {
                     *i += incr;
-                },
+                }
                 _ => {
                     return Err(anyhow!("cannot increment non-integer value"));
                 }
@@ -165,7 +166,7 @@ mod general_store_tests {
             "banana".to_string(),
             "tucson".to_string(),
             "non-existant".to_string(),
-            "apple".to_string()
+            "apple".to_string(),
         ];
 
         let results = gs.get_multiple(keys);

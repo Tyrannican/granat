@@ -1,5 +1,5 @@
-pub mod general;
 pub mod entry;
+pub mod general;
 pub mod list;
 
 pub type KVPair = (String, String);
@@ -11,6 +11,5 @@ pub enum StoreMode {
     Normal,
 
     /// Only perform operation if key already exists
-    Safe
+    Safe,
 }
-

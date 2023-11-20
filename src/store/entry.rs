@@ -1,10 +1,10 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub enum EntryValue {
     Integer(i64),
     Float(f64),
-    String(String)
+    String(String),
 }
 
 impl EntryValue {
@@ -22,7 +22,7 @@ impl EntryValue {
         match self {
             Self::Integer(i) => return i.to_string(),
             Self::Float(f) => return f.to_string(),
-            Self::String(s) => return s.to_string()
+            Self::String(s) => return s.to_string(),
         }
     }
 }
@@ -30,14 +30,14 @@ impl EntryValue {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Entry {
     pub value: EntryValue,
-    pub expiry: Option<u64>
+    pub expiry: Option<u64>,
 }
 
 impl Entry {
-    pub fn new(value: String) ->  Self {
+    pub fn new(value: String) -> Self {
         return Self {
             value: EntryValue::convert(value),
-            expiry: None
+            expiry: None,
         };
     }
 
@@ -59,12 +59,14 @@ mod entry_tests {
         let nve_float = EntryValue::convert("-49875286.87");
         let string = EntryValue::convert("i am a string value");
 
-
         assert_eq!(pve_number, EntryValue::Integer(1234567));
         assert_eq!(pve_float, EntryValue::Float(123456.23));
         assert_eq!(nve_number, EntryValue::Integer(-123376898355));
         assert_eq!(nve_float, EntryValue::Float(-49875286.87));
-        assert_eq!(string, EntryValue::String("i am a string value".to_string()));
+        assert_eq!(
+            string,
+            EntryValue::String("i am a string value".to_string())
+        );
     }
 
     #[test]

@@ -1,8 +1,8 @@
 use anyhow::Result;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::store::{StoreMode, KVPair};
 use crate::store::entry::EntryValue;
+use crate::store::{KVPair, StoreMode};
 
 use std::collections::{HashMap, LinkedList};
 
@@ -17,14 +17,14 @@ pub struct ListStore {
     pub store: HashMap<String, LinkedList<EntryValue>>,
 
     #[serde(skip)]
-    pub mode: StoreMode
+    pub mode: StoreMode,
 }
 
 impl ListStore {
     pub fn new() -> Self {
         return Self {
             store: HashMap::new(),
-            mode: StoreMode::default()
+            mode: StoreMode::default(),
         };
     }
 
@@ -55,9 +55,9 @@ impl ListStore {
             inner_list.push_back(insert_value);
         }
 
-        return Ok(())
+        return Ok(());
     }
-    
+
     pub fn push_multiple(&mut self, kvs: Vec<KVPair>, dir: ListDirection) -> Result<()> {
         for kv in kvs.into_iter() {
             let _ = self.push(kv, dir.clone());
