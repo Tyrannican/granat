@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub enum ExpiryState {
     Expired,
     Active(i64),
-    NoExpiry
+    NoExpiry,
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -16,7 +16,7 @@ pub enum EntryValue {
 }
 
 impl EntryValue {
-    pub fn convert(value: impl AsRef<str>) -> Self {
+    pub fn parse(value: impl AsRef<str>) -> Self {
         if let Ok(v) = value.as_ref().parse::<i64>() {
             return Self::Integer(v);
         } else if let Ok(v) = value.as_ref().parse::<f64>() {
@@ -46,7 +46,7 @@ pub struct Entry {
 impl Entry {
     pub fn new(value: impl AsRef<str>) -> Self {
         return Self {
-            value: EntryValue::convert(value),
+            value: EntryValue::parse(value),
             expiry: ExpiryState::NoExpiry,
         };
     }
@@ -64,7 +64,7 @@ impl Entry {
                 if exp < now {
                     self.expiry = ExpiryState::Expired;
                 }
-            },
+            }
             _ => {}
         }
 
@@ -84,11 +84,11 @@ mod entry_tests {
 
     #[test]
     fn create_entry_value() {
-        let pve_number = EntryValue::convert("1234567");
-        let pve_float = EntryValue::convert("123456.23");
-        let nve_number = EntryValue::convert("-123376898355");
-        let nve_float = EntryValue::convert("-49875286.87");
-        let string = EntryValue::convert("i am a string value");
+        let pve_number = EntryValue::parse("1234567");
+        let pve_float = EntryValue::parse("123456.23");
+        let nve_number = EntryValue::parse("-123376898355");
+        let nve_float = EntryValue::parse("-49875286.87");
+        let string = EntryValue::parse("i am a string value");
 
         assert_eq!(pve_number, EntryValue::Integer(1234567));
         assert_eq!(pve_float, EntryValue::Float(123456.23));
@@ -101,7 +101,7 @@ mod entry_tests {
     }
 
     #[test]
-    fn convert_entry_value_back_to_string() {
+    fn parse_entry_value_back_to_string() {
         let pve_number = EntryValue::Integer(1234567);
         let pve_float = EntryValue::Float(123456.78);
         let nve_number = EntryValue::Integer(-9876543);

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 
-use crate::store::entry::{EntryValue, Entry};
+use crate::store::entry::{Entry, EntryValue};
 use crate::store::{KVPair, StoreMode};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -92,7 +92,8 @@ impl GeneralStore {
         }
 
         let initial_value = 0 + incr;
-        self.store.insert(key, Entry::new(initial_value.to_string()));
+        self.store
+            .insert(key, Entry::new(initial_value.to_string()));
         return Ok(initial_value.to_string());
     }
 
@@ -112,7 +113,8 @@ impl GeneralStore {
         }
 
         let initial_value = 0. + incr;
-        self.store.insert(key, Entry::new(initial_value.to_string()));
+        self.store
+            .insert(key, Entry::new(initial_value.to_string()));
         return Ok(initial_value.to_string());
     }
 }
