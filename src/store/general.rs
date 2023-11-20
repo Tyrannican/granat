@@ -3,12 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 
-use crate::store::entry::EntryValue;
+use crate::store::entry::{EntryValue, Entry};
 use crate::store::{KVPair, StoreMode};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GeneralStore {
-    pub store: HashMap<String, EntryValue>,
+    pub store: HashMap<String, Entry>,
 
     #[serde(skip)]
     pub mode: StoreMode,
@@ -36,7 +36,7 @@ impl GeneralStore {
             return Err(anyhow!("cannot overwrite values in safe mode"));
         }
 
-        let insert_value = EntryValue::convert(value);
+        let insert_value = Entry::new(value);
         self.store.insert(key, insert_value);
 
         return Ok(());
@@ -49,15 +49,15 @@ impl GeneralStore {
                 return Err(anyhow!("cannot overwrite values in safe mode"));
             }
 
-            let insert_value = EntryValue::convert(value);
+            let insert_value = Entry::new(value);
             self.store.insert(key, insert_value);
         }
         return Ok(());
     }
 
     pub fn get(&self, key: String) -> Option<String> {
-        if let Some(value) = self.store.get(&key) {
-            return Some(value.as_string());
+        if let Some(v) = self.store.get(&key) {
+            return Some(v.value.as_string());
         }
 
         return None;
@@ -67,8 +67,8 @@ impl GeneralStore {
         return keys
             .into_iter()
             .map(|k| {
-                if let Some(value) = self.store.get(&k) {
-                    return Some(value.as_string());
+                if let Some(v) = self.store.get(&k) {
+                    return Some(v.value.as_string());
                 }
 
                 return None;
@@ -77,40 +77,42 @@ impl GeneralStore {
     }
 
     pub fn increment(&mut self, key: String, incr: i64) -> Result<String> {
-        if let Some(value) = self.store.get_mut(&key) {
-            match value {
-                EntryValue::Integer(i) => {
-                    *i += incr;
+        if let Some(v) = self.store.get_mut(&key) {
+            match v.value {
+                EntryValue::Integer(mut i) => {
+                    i += incr;
+                    v.value = EntryValue::Integer(i);
                 }
                 _ => {
                     return Err(anyhow!("cannot increment non-integer value"));
                 }
             }
 
-            return Ok(value.as_string());
+            return Ok(v.value.as_string());
         }
 
         let initial_value = 0 + incr;
-        self.store.insert(key, EntryValue::Integer(initial_value));
+        self.store.insert(key, Entry::new(initial_value.to_string()));
         return Ok(initial_value.to_string());
     }
 
     pub fn increment_float(&mut self, key: String, incr: f64) -> Result<String> {
-        if let Some(value) = self.store.get_mut(&key) {
-            match value {
-                EntryValue::Float(i) => {
-                    *i += incr;
+        if let Some(v) = self.store.get_mut(&key) {
+            match v.value {
+                EntryValue::Float(mut i) => {
+                    i += incr;
+                    v.value = EntryValue::Float(i);
                 }
                 _ => {
                     return Err(anyhow!("cannot increment non-integer value"));
                 }
             }
 
-            return Ok(value.as_string());
+            return Ok(v.value.as_string());
         }
 
         let initial_value = 0. + incr;
-        self.store.insert(key, EntryValue::Float(initial_value));
+        self.store.insert(key, Entry::new(initial_value.to_string()));
         return Ok(initial_value.to_string());
     }
 }
