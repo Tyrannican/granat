@@ -1,4 +1,12 @@
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub enum ExpiryState {
+    Expired,
+    Active(i64),
+    NoExpiry
+}
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub enum EntryValue {
@@ -32,20 +40,35 @@ impl std::fmt::Display for EntryValue {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Entry {
     pub value: EntryValue,
-    pub expiry: Option<u64>,
+    pub expiry: ExpiryState,
 }
 
 impl Entry {
-    pub fn new(value: String) -> Self {
+    pub fn new(value: impl AsRef<str>) -> Self {
         return Self {
             value: EntryValue::convert(value),
-            expiry: None,
+            expiry: ExpiryState::NoExpiry,
         };
     }
 
-    pub fn expiry(mut self, expiry_time: u64) -> Self {
-        self.expiry = Some(expiry_time);
+    pub fn expires_in(mut self, expiry_time: i64) -> Self {
+        let now = Utc::now().timestamp();
+        self.expiry = ExpiryState::Active(now + expiry_time);
         return self;
+    }
+
+    pub fn ttl(&mut self) -> ExpiryState {
+        match self.expiry {
+            ExpiryState::Active(exp) => {
+                let now = Utc::now().timestamp();
+                if exp < now {
+                    self.expiry = ExpiryState::Expired;
+                }
+            },
+            _ => {}
+        }
+
+        return self.expiry.clone();
     }
 }
 
@@ -94,21 +117,28 @@ mod entry_tests {
 
     #[test]
     fn create_a_basic_entry() {
-        let mut ev = Entry::new("1234567".to_string());
+        let mut ev = Entry::new("1234567");
         assert_eq!(ev.value, EntryValue::Integer(1234567));
-        assert!(ev.expiry.is_none());
+        assert!(ev.expiry == ExpiryState::NoExpiry);
 
-        ev = Entry::new("123456.7".to_string());
+        ev = Entry::new("123456.7");
         assert_eq!(ev.value, EntryValue::Float(123456.7));
-        assert!(ev.expiry.is_none());
+        assert!(ev.expiry == ExpiryState::NoExpiry);
 
-        ev = Entry::new("i am a string".to_string());
+        ev = Entry::new("i am a string");
         assert_eq!(ev.value, EntryValue::String("i am a string".to_string()));
-        assert!(ev.expiry.is_none());
+        assert!(ev.expiry == ExpiryState::NoExpiry);
     }
 
     #[test]
     fn create_entry_with_expiry() {
-        // TODO: Fill me in
+        let mut entry = Entry::new("five hundred").expires_in(2);
+        assert_eq!(entry.ttl(), ExpiryState::Active(Utc::now().timestamp() + 2));
+
+        while entry.ttl() != ExpiryState::Expired {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+
+        assert_eq!(entry.ttl(), ExpiryState::Expired);
     }
 }
