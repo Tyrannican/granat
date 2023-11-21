@@ -1,3 +1,5 @@
+use std::fmt;
+
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
@@ -27,8 +29,8 @@ impl EntryValue {
     }
 }
 
-impl std::fmt::Display for EntryValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for EntryValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Integer(i) => return write!(f, "{}", i.to_string()),
             Self::Float(fl) => return write!(f, "{}", fl.to_string()),
@@ -72,8 +74,8 @@ impl Entry {
     }
 }
 
-impl std::fmt::Display for Entry {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Entry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value.to_string())
     }
 }
