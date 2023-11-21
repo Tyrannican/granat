@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-
-use self::entry::Entry;
-
 pub mod entry;
 pub mod general;
 pub mod list;
 
-pub type KVPair = (String, String);
+use entry::Entry;
+
+pub type KVPair = (String, Entry);
 
 #[derive(Default, Debug, PartialEq)]
 pub enum StoreMode {

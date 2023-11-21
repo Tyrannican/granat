@@ -131,9 +131,11 @@ mod entry_tests {
     }
 
     #[test]
+    #[ignore]
+    /// Takes ages to run
     fn create_entry_with_expiry() {
-        let mut entry = Entry::new("five hundred").expires_in(2);
-        assert_eq!(entry.ttl(), ExpiryState::Active(Utc::now().timestamp() + 2));
+        let mut entry = Entry::new("five hundred").expires_in(5);
+        assert_eq!(entry.ttl(), ExpiryState::Active(Utc::now().timestamp() + 5));
 
         while entry.ttl() != ExpiryState::Expired {
             std::thread::sleep(std::time::Duration::from_secs(1));

@@ -4,40 +4,23 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::store::entry::{Entry, EntryValue};
-use crate::store::{KVPair, StoreMode};
+use crate::store::KVPair;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GeneralStore {
     pub store: HashMap<String, Entry>,
-
-    #[serde(skip)]
-    pub mode: StoreMode,
 }
 
 impl GeneralStore {
     pub fn new() -> Self {
         Self {
             store: HashMap::new(),
-            mode: StoreMode::default(),
         }
-    }
-
-    pub fn safe_mode(&mut self) {
-        self.mode = StoreMode::Safe;
-    }
-
-    pub fn normal_mode(&mut self) {
-        self.mode = StoreMode::Normal;
     }
 
     pub fn set(&mut self, kv: KVPair) -> Result<()> {
         let (key, value) = kv;
-        if self.store.get(&key).is_some() && self.mode == StoreMode::Safe {
-            return Err(anyhow!("cannot overwrite values in safe mode"));
-        }
-
-        let insert_value = Entry::new(value);
-        self.store.insert(key, insert_value);
+        self.store.insert(key, value);
 
         return Ok(());
     }
@@ -45,19 +28,14 @@ impl GeneralStore {
     pub fn set_multiple(&mut self, kvs: Vec<KVPair>) -> Result<()> {
         for kv in kvs.into_iter() {
             let (key, value) = kv;
-            if self.store.get(&key).is_some() && self.mode == StoreMode::Safe {
-                return Err(anyhow!("cannot overwrite values in safe mode"));
-            }
-
-            let insert_value = Entry::new(value);
-            self.store.insert(key, insert_value);
+            self.store.insert(key, value);
         }
         return Ok(());
     }
 
     pub fn get(&self, key: String) -> Option<String> {
-        if let Some(v) = self.store.get(&key) {
-            return Some(v.value.to_string());
+        if let Some(raw) = self.store.get(&key) {
+            return Some(raw.value.to_string());
         }
 
         return None;
@@ -67,8 +45,8 @@ impl GeneralStore {
         return keys
             .into_iter()
             .map(|k| {
-                if let Some(v) = self.store.get(&k) {
-                    return Some(v.value.to_string());
+                if let Some(raw) = self.store.get(&k) {
+                    return Some(raw.value.to_string());
                 }
 
                 return None;
@@ -77,18 +55,18 @@ impl GeneralStore {
     }
 
     pub fn increment(&mut self, key: String, incr: i64) -> Result<String> {
-        if let Some(v) = self.store.get_mut(&key) {
-            match v.value {
+        if let Some(raw) = self.store.get_mut(&key) {
+            match raw.value {
                 EntryValue::Integer(mut i) => {
                     i += incr;
-                    v.value = EntryValue::Integer(i);
+                    raw.value = EntryValue::Integer(i);
                 }
                 _ => {
                     return Err(anyhow!("cannot increment non-integer value"));
                 }
             }
 
-            return Ok(v.value.to_string());
+            return Ok(raw.value.to_string());
         }
 
         let initial_value = 0 + incr;
@@ -98,18 +76,18 @@ impl GeneralStore {
     }
 
     pub fn increment_float(&mut self, key: String, incr: f64) -> Result<String> {
-        if let Some(v) = self.store.get_mut(&key) {
-            match v.value {
+        if let Some(raw) = self.store.get_mut(&key) {
+            match raw.value {
                 EntryValue::Float(mut i) => {
                     i += incr;
-                    v.value = EntryValue::Float(i);
+                    raw.value = EntryValue::Float(i);
                 }
                 _ => {
                     return Err(anyhow!("cannot increment non-integer value"));
                 }
             }
 
-            return Ok(v.value.to_string());
+            return Ok(raw.value.to_string());
         }
 
         let initial_value = 0. + incr;
@@ -124,7 +102,7 @@ mod general_store_tests {
     use super::*;
 
     fn create_kv(key: &str, value: &str) -> KVPair {
-        return (key.to_string(), value.to_string());
+        return (key.to_string(), Entry::new(value));
     }
 
     #[test]
@@ -178,41 +156,6 @@ mod general_store_tests {
         assert_eq!(results[1], Some("arizona".to_string()));
         assert_eq!(results[2], None);
         assert_eq!(results[3], Some("99.99".to_string()));
-    }
-
-    #[test]
-    fn safe_set() {
-        let mut gs = GeneralStore::new();
-        gs.safe_mode();
-        let _ = gs.set(create_kv("test", "original"));
-        assert_eq!(gs.get("test".to_string()), Some("original".to_string()));
-
-        let _ = gs.set(create_kv("test", "newer"));
-        assert_eq!(gs.get("test".to_string()), Some("original".to_string()));
-    }
-
-    #[test]
-    fn safe_set_multiple() {
-        let mut gs = GeneralStore::new();
-        let originals = vec![
-            create_kv("banana", "pie"),
-            create_kv("apple", "55"),
-            create_kv("orange", "juice"),
-        ];
-
-        let replacements = vec![
-            create_kv("banana", "no replace"),
-            create_kv("apple", "no replace"),
-            create_kv("orange", "no replace:#![warn()]"),
-        ];
-
-        gs.safe_mode();
-        let _ = gs.set_multiple(originals);
-        let _ = gs.set_multiple(replacements);
-
-        assert_eq!(gs.get("banana".to_string()), Some("pie".to_string()));
-        assert_eq!(gs.get("apple".to_string()), Some("55".to_string()));
-        assert_eq!(gs.get("orange".to_string()), Some("juice".to_string()));
     }
 
     #[test]
