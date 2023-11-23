@@ -10,7 +10,7 @@ pub enum ExpiryState {
     NoExpiry,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum EntryValue {
     Integer(i64),
     Float(f64),
@@ -71,6 +71,15 @@ impl Entry {
         }
 
         return self.expiry.clone();
+    }
+}
+
+impl Clone for Entry {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            expiry: self.expiry.clone(),
+        }
     }
 }
 

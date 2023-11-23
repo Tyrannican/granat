@@ -33,67 +33,72 @@ impl GeneralStore {
         return Ok(());
     }
 
-    pub fn get(&self, key: String) -> Option<String> {
-        if let Some(raw) = self.store.get(&key) {
-            return Some(raw.value.to_string());
+    pub fn get(&self, key: impl AsRef<str>) -> Option<Entry> {
+        if let Some(raw) = self.store.get(key.as_ref()) {
+            return Some(raw.clone());
         }
 
         return None;
     }
 
-    pub fn get_multiple(&self, keys: Vec<String>) -> Vec<Option<String>> {
+    pub fn get_multiple(&self, keys: Vec<impl AsRef<str>>) -> Vec<Option<Entry>> {
         return keys
             .into_iter()
             .map(|k| {
-                if let Some(raw) = self.store.get(&k) {
-                    return Some(raw.value.to_string());
+                if let Some(raw) = self.store.get(k.as_ref()) {
+                    return Some(raw.clone());
                 }
 
                 return None;
             })
-            .collect::<Vec<Option<String>>>();
+            .collect::<Vec<Option<Entry>>>();
     }
 
-    pub fn increment(&mut self, key: String, incr: i64) -> Result<String> {
-        if let Some(raw) = self.store.get_mut(&key) {
+    pub fn increment(&mut self, key: impl AsRef<str>, incr: i64) -> Result<i64> {
+        if let Some(raw) = self.store.get_mut(key.as_ref()) {
             match raw.value {
                 EntryValue::Integer(mut i) => {
                     i += incr;
                     raw.value = EntryValue::Integer(i);
+
+                    return Ok(i);
                 }
                 _ => {
                     return Err(anyhow!("cannot increment non-integer value"));
                 }
             }
-
-            return Ok(raw.value.to_string());
         }
 
         let initial_value = 0 + incr;
+        let key_value = key.as_ref().to_string();
+
         self.store
-            .insert(key, Entry::new(initial_value.to_string()));
-        return Ok(initial_value.to_string());
+            .insert(key_value, Entry::new(initial_value.to_string()));
+
+        return Ok(initial_value);
     }
 
-    pub fn increment_float(&mut self, key: String, incr: f64) -> Result<String> {
-        if let Some(raw) = self.store.get_mut(&key) {
+    pub fn increment_float(&mut self, key: impl AsRef<str>, incr: f64) -> Result<f64> {
+        if let Some(raw) = self.store.get_mut(key.as_ref()) {
             match raw.value {
                 EntryValue::Float(mut i) => {
                     i += incr;
                     raw.value = EntryValue::Float(i);
+
+                    return Ok(i);
                 }
                 _ => {
                     return Err(anyhow!("cannot increment non-integer value"));
                 }
             }
-
-            return Ok(raw.value.to_string());
         }
 
         let initial_value = 0. + incr;
+        let key_value = key.as_ref().to_string();
         self.store
-            .insert(key, Entry::new(initial_value.to_string()));
-        return Ok(initial_value.to_string());
+            .insert(key_value, Entry::new(initial_value.to_string()));
+
+        return Ok(initial_value);
     }
 }
 
@@ -106,7 +111,7 @@ mod general_store_tests {
     }
 
     #[test]
-    fn set_get_single() {
+    fn get_set_single() {
         let mut gs = GeneralStore::new();
 
         let _ = gs.set(create_kv("string", "string test value"));
@@ -118,17 +123,20 @@ mod general_store_tests {
         let mut res = gs.get("string".to_string());
         assert!(res.is_some());
         let mut value = res.unwrap();
-        assert_eq!(value, "string test value".to_string());
+        assert_eq!(
+            value.value,
+            EntryValue::String("string test value".to_string())
+        );
 
         res = gs.get("number".to_string());
         assert!(res.is_some());
         value = res.unwrap();
-        assert_eq!(value, "120".to_string());
+        assert_eq!(value.value, EntryValue::Integer(120));
 
         res = gs.get("float".to_string());
         assert!(res.is_some());
         value = res.unwrap();
-        assert_eq!(value, "347.84".to_string());
+        assert_eq!(value.value, EntryValue::Float(347.84));
     }
 
     #[test]
@@ -152,10 +160,10 @@ mod general_store_tests {
         ];
 
         let results = gs.get_multiple(keys);
-        assert_eq!(results[0], Some("42".to_string()));
-        assert_eq!(results[1], Some("arizona".to_string()));
-        assert_eq!(results[2], None);
-        assert_eq!(results[3], Some("99.99".to_string()));
+        let some_total = results.iter().filter(|e| e.is_some()).count();
+        let none_total = results.iter().filter(|e| e.is_none()).count();
+        assert_eq!(some_total, 3);
+        assert_eq!(none_total, 1);
     }
 
     #[test]
@@ -171,12 +179,12 @@ mod general_store_tests {
         let mut result = gs.increment("integer".to_string(), 10);
         assert!(result.is_ok());
         let mut inner = result.unwrap();
-        assert_eq!(inner, "20".to_string());
+        assert_eq!(inner, 20);
 
         result = gs.increment("integer".to_string(), -25);
         assert!(result.is_ok());
         inner = result.unwrap();
-        assert_eq!(inner, "-5".to_string());
+        assert_eq!(inner, -5);
 
         result = gs.increment("string".to_string(), 10);
         assert!(result.is_err());
@@ -195,7 +203,7 @@ mod general_store_tests {
         let mut result = gs.increment_float("float".to_string(), 30.7);
         assert!(result.is_ok());
         let inner = result.unwrap();
-        assert_eq!(inner, "40.9".to_string());
+        assert_eq!(inner, 40.9);
 
         result = gs.increment_float("float".to_string(), -45.8);
         assert!(result.is_ok());
