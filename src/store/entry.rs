@@ -1,5 +1,6 @@
 use std::fmt;
 
+use anyhow::{anyhow, Result};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +16,7 @@ pub enum EntryValue {
     Integer(i64),
     Float(f64),
     String(String),
+    Object(String),
 }
 
 impl EntryValue {
@@ -34,7 +36,7 @@ impl fmt::Display for EntryValue {
         match self {
             Self::Integer(i) => return write!(f, "{}", i.to_string()),
             Self::Float(fl) => return write!(f, "{}", fl.to_string()),
-            Self::String(s) => return write!(f, "{}", s.to_string()),
+            Self::String(s) | Self::Object(s) => return write!(f, "{}", s.to_string()),
         }
     }
 }
@@ -53,10 +55,32 @@ impl Entry {
         };
     }
 
+    pub fn from_obj<T: Serialize>(obj: &T) -> Result<Self> {
+        match serde_json::to_string::<T>(obj) {
+            Ok(obj_str) => {
+                return Ok(Self {
+                    value: EntryValue::Object(obj_str),
+                    expiry: ExpiryState::NoExpiry,
+                })
+            }
+            Err(e) => return Err(anyhow!("unable to serialize object: {e}")),
+        }
+    }
+
     pub fn expires_in(mut self, expiry_time: i64) -> Self {
         let now = Utc::now().timestamp();
         self.expiry = ExpiryState::Active(now + expiry_time);
         return self;
+    }
+
+    pub fn to_obj<T: serde::de::DeserializeOwned>(&self) -> Result<Option<T>> {
+        match &self.value {
+            EntryValue::Object(o) => match serde_json::from_str::<T>(&o) {
+                Ok(obj) => return Ok(Some(obj)),
+                Err(e) => return Err(anyhow!("unable to deserialize object: {e}")),
+            },
+            _ => Ok(None),
+        }
     }
 
     pub fn ttl(&mut self) -> ExpiryState {
@@ -92,6 +116,13 @@ impl fmt::Display for Entry {
 #[cfg(test)]
 mod entry_tests {
     use super::*;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize)]
+    struct TestDataStruct {
+        value: i32,
+        message: String,
+    }
 
     #[test]
     fn create_entry_value() {
@@ -153,5 +184,55 @@ mod entry_tests {
         }
 
         assert_eq!(entry.ttl(), ExpiryState::Expired);
+    }
+
+    #[test]
+    fn create_entry_value_with_object() {
+        let td = TestDataStruct {
+            value: 5,
+            message: "some message".to_string(),
+        };
+
+        let entry = Entry::from_obj(&td);
+        assert!(entry.is_ok());
+        let inner = entry.unwrap().value;
+
+        let expected = EntryValue::Object("{\"value\":5,\"message\":\"some message\"}".to_string());
+        assert_eq!(inner, expected);
+    }
+
+    #[test]
+    fn convert_entry_to_object() {
+        let td = TestDataStruct {
+            value: 5,
+            message: "some message".to_string(),
+        };
+
+        let entry = Entry::from_obj(&td);
+        assert!(entry.is_ok());
+
+        let inner = entry.unwrap();
+        let output = inner.to_obj::<TestDataStruct>();
+
+        assert!(output.is_ok());
+
+        let inner_from_output = output.unwrap();
+
+        assert!(inner_from_output.is_some());
+
+        let test_value = inner_from_output.unwrap();
+        assert_eq!(test_value.value, 5);
+        assert_eq!(test_value.message, "some message".to_string());
+    }
+
+    #[test]
+    fn ensure_none_when_converting_none_object() {
+        let entry = Entry::new("5");
+        let result = entry.to_obj::<TestDataStruct>();
+
+        assert!(result.is_ok());
+
+        let inner = result.unwrap();
+        assert!(inner.is_none());
     }
 }
