@@ -78,10 +78,30 @@ impl ListStore {
         return None;
     }
 
-    pub fn index(&self, key: impl AsRef<str>, idx: usize) {
+    pub fn index(&self, key: impl AsRef<str>, idx: isize) -> Option<Entry> {
         if let Some(list) = self.store.get(key.as_ref()) {
-            for item in list.iter().rev().enumerate() {}
+            if idx >= 0 {
+                let mut current_idx = 0;
+                for item in list.iter() {
+                    if current_idx == idx {
+                        return Some(item.clone());
+                    }
+
+                    current_idx += 1;
+                }
+            } else {
+                let mut current_idx = -1;
+                for item in list.iter().rev() {
+                    if current_idx == idx {
+                        return Some(item.clone());
+                    }
+
+                    current_idx -= 1;
+                }
+            }
         }
+
+        return None;
     }
 
     pub fn len(&self, key: impl AsRef<str>) -> usize {
@@ -91,6 +111,12 @@ impl ListStore {
 
         return 0;
     }
+
+    pub fn set(&self) {}
+
+    pub fn trim(&self) {}
+
+    pub fn remove(&mut self) {}
 }
 
 #[cfg(test)]
@@ -99,9 +125,11 @@ mod list_tests {
 
     // L/R Push ✔
     // L/R Pop ✔
-    // L/R Index
+    // L/R Index ✔
     // Length ✔
     // Set
     // Trim
     // Remove
+    //
+    // TODO: Actually write the tests
 }
