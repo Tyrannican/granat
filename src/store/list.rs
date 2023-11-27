@@ -3,10 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, LinkedList};
 
-use crate::store::{
-    entry::{Entry, EntryValue},
-    KVPair,
-};
+use crate::store::{entry::Entry, KVPair};
 
 fn idx_from_offset(list_size: usize, idx: isize) -> isize {
     if idx >= 0 {
@@ -183,7 +180,14 @@ impl ListStore {
         }
     }
 
-    pub fn remove(&mut self) {}
+    pub fn remove(&mut self, kv: KVPair, count: usize) {
+        let (key, value) = kv;
+        if let Some(list) = self.store.get_mut(&key) {
+            // If count > 0: Remove items from H -> T
+            // If count < 0: Remove items from T -> H
+            // If count = 0: Remove them all
+        }
+    }
 }
 
 #[cfg(test)]
