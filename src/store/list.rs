@@ -180,14 +180,74 @@ impl ListStore {
         }
     }
 
-    pub fn remove(&mut self, kv: KVPair, mut count: isize) {
-        let (key, value) = kv;
-        if let Some(list) = self.store.get_mut(&key) {
-            // If count > 0: Remove items from H -> T
-            // If count < 0: Remove items from T -> H
-            // If count = 0: Remove them all
+    pub fn remove(
+        &mut self,
+        key: impl AsRef<str>,
+        value: impl AsRef<str>,
+        mut count: isize,
+    ) -> usize {
+        let mut total_removed = 0;
+        if let Some(list) = self.store.get_mut(key.as_ref()) {
+            let target = value.as_ref().to_string();
+
+            if count == 0 {
+                while let Some(idx) = find_entry(list, &target, ListDirection::Left) {
+                    let mut right = list.split_off(idx);
+                    right.pop_front();
+                    list.append(&mut right);
+                    total_removed += 1;
+                }
+            } else if count > 0 {
+                while let Some(idx) = find_entry(list, &target, ListDirection::Left) {
+                    let mut right = list.split_off(idx);
+                    right.pop_front();
+                    list.append(&mut right);
+                    total_removed += 1;
+                    count -= 1;
+
+                    if count == 0 {
+                        break;
+                    }
+                }
+            } else {
+                while let Some(idx) = find_entry(list, &target, ListDirection::Right) {
+                    let mut right = list.split_off(idx);
+                    right.pop_front();
+                    list.append(&mut right);
+                    total_removed += 1;
+                    count -= 1;
+
+                    if count == 0 {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return total_removed;
+    }
+}
+
+fn find_entry(list: &mut LinkedList<Entry>, target: &String, dir: ListDirection) -> Option<usize> {
+    match dir {
+        ListDirection::Left => {
+            for (pos, entry) in list.iter().enumerate() {
+                if &entry.value == target {
+                    return Some(pos);
+                }
+            }
+        }
+        ListDirection::Right => {
+            let offset = list.len() - 1;
+            for (pos, entry) in list.iter().rev().enumerate() {
+                if &entry.value == target {
+                    return Some(offset - pos);
+                }
+            }
         }
     }
+
+    None
 }
 
 #[cfg(test)]
@@ -201,7 +261,7 @@ mod list_tests {
     // Set ✔
     // Trim ✔
     // Range ✔
-    // Remove
+    // Remove ✔
     //
     // TODO: Actually write the tests
     //
