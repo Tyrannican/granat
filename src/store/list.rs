@@ -174,13 +174,13 @@ impl ListStore {
                 end = size - 1;
             }
 
-            let mut first = list.split_off(start as usize);
-            first.split_off(end as usize - 1);
-            self.store.insert(key.as_ref().to_string(), first);
+            let mut split = list.split_off(start as usize);
+            split.split_off(end as usize - 1);
+            self.store.insert(key.as_ref().to_string(), split);
         }
     }
 
-    pub fn remove(&mut self, kv: KVPair, count: usize) {
+    pub fn remove(&mut self, kv: KVPair, mut count: isize) {
         let (key, value) = kv;
         if let Some(list) = self.store.get_mut(&key) {
             // If count > 0: Remove items from H -> T

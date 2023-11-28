@@ -11,46 +11,16 @@ pub enum ExpiryState {
     NoExpiry,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub enum EntryValue {
-    Integer(i64),
-    Float(f64),
-    String(String),
-    Object(String),
-}
-
-impl EntryValue {
-    pub fn parse(value: impl AsRef<str>) -> Self {
-        if let Ok(v) = value.as_ref().parse::<i64>() {
-            return Self::Integer(v);
-        } else if let Ok(v) = value.as_ref().parse::<f64>() {
-            return Self::Float(v);
-        } else {
-            return Self::String(value.as_ref().to_string());
-        }
-    }
-}
-
-impl fmt::Display for EntryValue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Integer(i) => return write!(f, "{}", i.to_string()),
-            Self::Float(fl) => return write!(f, "{}", fl.to_string()),
-            Self::String(s) | Self::Object(s) => return write!(f, "{}", s.to_string()),
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Entry {
-    pub value: EntryValue,
+    pub value: String,
     pub expiry: ExpiryState,
 }
 
 impl Entry {
     pub fn new(value: impl AsRef<str>) -> Self {
         return Self {
-            value: EntryValue::parse(value),
+            value: value.as_ref().to_string(),
             expiry: ExpiryState::NoExpiry,
         };
     }
@@ -59,7 +29,7 @@ impl Entry {
         match serde_json::to_string::<T>(obj) {
             Ok(obj_str) => {
                 return Ok(Self {
-                    value: EntryValue::Object(obj_str),
+                    value: obj_str,
                     expiry: ExpiryState::NoExpiry,
                 })
             }
@@ -73,14 +43,11 @@ impl Entry {
         return self;
     }
 
-    pub fn to_obj<T: serde::de::DeserializeOwned>(&self) -> Result<Option<T>> {
-        match &self.value {
-            EntryValue::Object(o) => match serde_json::from_str::<T>(&o) {
-                Ok(obj) => return Ok(Some(obj)),
-                Err(e) => return Err(anyhow!("unable to deserialize object: {e}")),
-            },
-            _ => Ok(None),
-        }
+    pub fn to_obj<T: serde::de::DeserializeOwned>(&self) -> Result<T> {
+        match serde_json::from_str::<T>(&self.value) {
+            Ok(obj) => return Ok(obj),
+            Err(e) => return Err(anyhow!("unable to deserialize object: {e}")),
+        };
     }
 
     pub fn ttl(&mut self) -> ExpiryState {
@@ -125,50 +92,17 @@ mod entry_tests {
     }
 
     #[test]
-    fn create_entry_value() {
-        let pve_number = EntryValue::parse("1234567");
-        let pve_float = EntryValue::parse("123456.23");
-        let nve_number = EntryValue::parse("-123376898355");
-        let nve_float = EntryValue::parse("-49875286.87");
-        let string = EntryValue::parse("i am a string value");
-
-        assert_eq!(pve_number, EntryValue::Integer(1234567));
-        assert_eq!(pve_float, EntryValue::Float(123456.23));
-        assert_eq!(nve_number, EntryValue::Integer(-123376898355));
-        assert_eq!(nve_float, EntryValue::Float(-49875286.87));
-        assert_eq!(
-            string,
-            EntryValue::String("i am a string value".to_string())
-        );
-    }
-
-    #[test]
-    fn parse_entry_value_back_to_string() {
-        let pve_number = EntryValue::Integer(1234567);
-        let pve_float = EntryValue::Float(123456.78);
-        let nve_number = EntryValue::Integer(-9876543);
-        let nve_float = EntryValue::Float(-987654.32);
-        let string = EntryValue::String("i should be a string".to_string());
-
-        assert_eq!(pve_number.to_string(), "1234567".to_string());
-        assert_eq!(pve_float.to_string(), "123456.78".to_string());
-        assert_eq!(nve_number.to_string(), "-9876543".to_string());
-        assert_eq!(nve_float.to_string(), "-987654.32".to_string());
-        assert_eq!(string.to_string(), "i should be a string".to_string());
-    }
-
-    #[test]
     fn create_a_basic_entry() {
         let mut ev = Entry::new("1234567");
-        assert_eq!(ev.value, EntryValue::Integer(1234567));
+        assert_eq!(ev.value, "1234567".to_string());
         assert!(ev.expiry == ExpiryState::NoExpiry);
 
         ev = Entry::new("123456.7");
-        assert_eq!(ev.value, EntryValue::Float(123456.7));
+        assert_eq!(ev.value, "123456.7".to_string());
         assert!(ev.expiry == ExpiryState::NoExpiry);
 
         ev = Entry::new("i am a string");
-        assert_eq!(ev.value, EntryValue::String("i am a string".to_string()));
+        assert_eq!(ev.value, "i am a string".to_string());
         assert!(ev.expiry == ExpiryState::NoExpiry);
     }
 
@@ -197,7 +131,7 @@ mod entry_tests {
         assert!(entry.is_ok());
         let inner = entry.unwrap().value;
 
-        let expected = EntryValue::Object("{\"value\":5,\"message\":\"some message\"}".to_string());
+        let expected = "{\"value\":5,\"message\":\"some message\"}".to_string();
         assert_eq!(inner, expected);
     }
 
@@ -218,11 +152,8 @@ mod entry_tests {
 
         let inner_from_output = output.unwrap();
 
-        assert!(inner_from_output.is_some());
-
-        let test_value = inner_from_output.unwrap();
-        assert_eq!(test_value.value, 5);
-        assert_eq!(test_value.message, "some message".to_string());
+        assert_eq!(inner_from_output.value, 5);
+        assert_eq!(inner_from_output.message, "some message".to_string());
     }
 
     #[test]
@@ -230,9 +161,6 @@ mod entry_tests {
         let entry = Entry::new("5");
         let result = entry.to_obj::<TestDataStruct>();
 
-        assert!(result.is_ok());
-
-        let inner = result.unwrap();
-        assert!(inner.is_none());
+        assert!(result.is_err());
     }
 }
