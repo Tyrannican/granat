@@ -222,6 +222,10 @@ impl ListStore {
                     }
                 }
             }
+
+            if list.len() == 0 {
+                self.store.remove(key.as_ref());
+            }
         }
 
         return total_removed;
@@ -271,16 +275,148 @@ mod list_tests {
     }
 
     #[test]
-    fn test_output() {
-        let mut ll = ListStore::new();
-        ll.right_push(create_kv_pair("test", "0"));
-        ll.right_push(create_kv_pair("test", "1"));
-        ll.right_push(create_kv_pair("test", "2"));
-        ll.right_push(create_kv_pair("test", "3"));
-        ll.right_push(create_kv_pair("test", "4"));
-        ll.right_push(create_kv_pair("test", "5"));
+    fn push_left() {
+        let mut list_store = ListStore::new();
+        list_store.left_push(create_kv_pair("test", "2"));
+        list_store.left_push(create_kv_pair("test", "1"));
+        list_store.left_push(create_kv_pair("test", "0"));
 
-        ll.trim("test", 2, 4);
-        println!("List: {:?}", ll.range("test", 0, -1));
+        let inner = list_store.store.get_mut("test").unwrap();
+        let mut val = inner.pop_front().unwrap().value;
+        assert_eq!(val, "0".to_string());
+
+        val = inner.pop_front().unwrap().value;
+        assert_eq!(val, "1".to_string());
+
+        val = inner.pop_front().unwrap().value;
+        assert_eq!(val, "2".to_string());
+    }
+
+    #[test]
+    fn push_right() {
+        let mut list_store = ListStore::new();
+        list_store.right_push(create_kv_pair("test", "0"));
+        list_store.right_push(create_kv_pair("test", "1"));
+        list_store.right_push(create_kv_pair("test", "2"));
+
+        let inner = list_store.store.get_mut("test").unwrap();
+        let mut val = inner.pop_front().unwrap().value;
+        assert_eq!(val, "0".to_string());
+
+        val = inner.pop_front().unwrap().value;
+        assert_eq!(val, "1".to_string());
+
+        val = inner.pop_front().unwrap().value;
+        assert_eq!(val, "2".to_string());
+    }
+
+    #[test]
+    fn length() {
+        let mut list_store = ListStore::new();
+        list_store.right_push(create_kv_pair("test", "0"));
+        list_store.right_push(create_kv_pair("test", "1"));
+        list_store.right_push(create_kv_pair("test", "2"));
+
+        assert_eq!(list_store.len("test"), 3);
+    }
+
+    #[test]
+    fn pop_left() {
+        let mut list_store = ListStore::new();
+        list_store.right_push(create_kv_pair("test", "0"));
+        list_store.right_push(create_kv_pair("test", "1"));
+        list_store.right_push(create_kv_pair("test", "2"));
+
+        let mut entry = list_store.left_pop("test");
+        assert!(entry.is_some());
+        let mut value = entry.unwrap().value;
+        assert_eq!(value, "0".to_string());
+        assert_eq!(list_store.len("test"), 2);
+
+        entry = list_store.left_pop("test");
+        assert!(entry.is_some());
+        value = entry.unwrap().value;
+        assert_eq!(value, "1".to_string());
+        assert_eq!(list_store.len("test"), 1);
+
+        entry = list_store.left_pop("test");
+        assert!(entry.is_some());
+        value = entry.unwrap().value;
+        assert_eq!(value, "2".to_string());
+        assert_eq!(list_store.len("test"), 0);
+
+        entry = list_store.left_pop("test");
+        assert!(entry.is_none());
+    }
+
+    #[test]
+    fn pop_right() {
+        let mut list_store = ListStore::new();
+        list_store.right_push(create_kv_pair("test", "0"));
+        list_store.right_push(create_kv_pair("test", "1"));
+        list_store.right_push(create_kv_pair("test", "2"));
+
+        let mut entry = list_store.right_pop("test");
+        assert!(entry.is_some());
+        let mut value = entry.unwrap().value;
+        assert_eq!(value, "2".to_string());
+        assert_eq!(list_store.len("test"), 2);
+
+        entry = list_store.right_pop("test");
+        assert!(entry.is_some());
+        value = entry.unwrap().value;
+        assert_eq!(value, "1".to_string());
+        assert_eq!(list_store.len("test"), 1);
+
+        entry = list_store.right_pop("test");
+        assert!(entry.is_some());
+        value = entry.unwrap().value;
+        assert_eq!(value, "0".to_string());
+        assert_eq!(list_store.len("test"), 0);
+
+        entry = list_store.right_pop("test");
+        assert!(entry.is_none());
+    }
+
+    #[test]
+    fn index_from_left() {
+        let mut list_store = ListStore::new();
+        list_store.right_push(create_kv_pair("test", "0"));
+        list_store.right_push(create_kv_pair("test", "1"));
+        list_store.right_push(create_kv_pair("test", "2"));
+        list_store.right_push(create_kv_pair("test", "3"));
+        list_store.right_push(create_kv_pair("test", "4"));
+
+        for i in 0..5 {
+            let entry = list_store.index("test", i as isize);
+            assert!(entry.is_some());
+            let value = entry.unwrap().value;
+            assert_eq!(value, i.to_string());
+        }
+
+        let entry = list_store.index("test", 563);
+        assert!(entry.is_none());
+    }
+
+    #[test]
+    fn index_from_right() {
+        let mut list_store = ListStore::new();
+        list_store.right_push(create_kv_pair("test", "0"));
+        list_store.right_push(create_kv_pair("test", "1"));
+        list_store.right_push(create_kv_pair("test", "2"));
+        list_store.right_push(create_kv_pair("test", "3"));
+        list_store.right_push(create_kv_pair("test", "4"));
+
+        let mut str_val = 4;
+        for i in (-5..0).rev() {
+            let entry = list_store.index("test", i as isize);
+            assert!(entry.is_some());
+            let value = entry.unwrap().value;
+            assert_eq!(value, str_val.to_string());
+            str_val -= 1;
+        }
+
+        let entry = list_store.index("test", -324);
+        assert!(entry.is_none());
     }
 }
