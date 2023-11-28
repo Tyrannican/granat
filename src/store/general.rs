@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 
-use crate::store::entry::{Entry, EntryValue};
+use crate::store::entry::Entry;
 use crate::store::KVPair;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -56,15 +56,15 @@ impl GeneralStore {
 
     pub fn increment(&mut self, key: impl AsRef<str>, incr: i64) -> Result<i64> {
         if let Some(raw) = self.store.get_mut(key.as_ref()) {
-            match raw.value {
-                EntryValue::Integer(mut i) => {
-                    i += incr;
-                    raw.value = EntryValue::Integer(i);
+            match raw.value.parse::<i64>() {
+                Ok(mut val) => {
+                    val += incr;
+                    raw.value = val.to_string();
 
-                    return Ok(i);
+                    return Ok(val);
                 }
-                _ => {
-                    return Err(anyhow!("cannot increment non-integer value"));
+                Err(e) => {
+                    return Err(anyhow!("unable to convert to integer: {e}"));
                 }
             }
         }
@@ -80,15 +80,15 @@ impl GeneralStore {
 
     pub fn increment_float(&mut self, key: impl AsRef<str>, incr: f64) -> Result<f64> {
         if let Some(raw) = self.store.get_mut(key.as_ref()) {
-            match raw.value {
-                EntryValue::Float(mut i) => {
-                    i += incr;
-                    raw.value = EntryValue::Float(i);
+            match raw.value.parse::<f64>() {
+                Ok(mut val) => {
+                    val += incr;
+                    raw.value = val.to_string();
 
-                    return Ok(i);
+                    return Ok(val);
                 }
-                _ => {
-                    return Err(anyhow!("cannot increment non-integer value"));
+                Err(e) => {
+                    return Err(anyhow!("unable to convert to float: {e}"));
                 }
             }
         }
@@ -123,20 +123,17 @@ mod general_store_tests {
         let mut res = gs.get("string".to_string());
         assert!(res.is_some());
         let mut value = res.unwrap();
-        assert_eq!(
-            value.value,
-            EntryValue::String("string test value".to_string())
-        );
+        assert_eq!(value.value, "string test value".to_string());
 
         res = gs.get("number".to_string());
         assert!(res.is_some());
         value = res.unwrap();
-        assert_eq!(value.value, EntryValue::Integer(120));
+        assert_eq!(value.value, "120".to_string());
 
         res = gs.get("float".to_string());
         assert!(res.is_some());
         value = res.unwrap();
-        assert_eq!(value.value, EntryValue::Float(347.84));
+        assert_eq!(value.value, "347.84".to_string());
     }
 
     #[test]
