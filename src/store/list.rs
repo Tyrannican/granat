@@ -129,7 +129,6 @@ impl ListStore {
                 end = size - 1;
             }
 
-            println!("Range: {start} - {end}");
             for (i, item) in list.iter().enumerate() {
                 if i as isize >= start && i as isize <= end {
                     ll.push_back(item.clone());
@@ -280,6 +279,17 @@ mod list_tests {
         return (key.as_ref().to_string(), Entry::new(value));
     }
 
+    fn create_basic_list_store() -> ListStore {
+        let mut list_store = ListStore::new();
+        list_store.right_push(create_kv_pair("test", "0"));
+        list_store.right_push(create_kv_pair("test", "1"));
+        list_store.right_push(create_kv_pair("test", "2"));
+        list_store.right_push(create_kv_pair("test", "3"));
+        list_store.right_push(create_kv_pair("test", "4"));
+
+        return list_store;
+    }
+
     #[test]
     fn push_left() {
         let mut list_store = ListStore::new();
@@ -386,12 +396,7 @@ mod list_tests {
 
     #[test]
     fn index_from_left() {
-        let mut list_store = ListStore::new();
-        list_store.right_push(create_kv_pair("test", "0"));
-        list_store.right_push(create_kv_pair("test", "1"));
-        list_store.right_push(create_kv_pair("test", "2"));
-        list_store.right_push(create_kv_pair("test", "3"));
-        list_store.right_push(create_kv_pair("test", "4"));
+        let list_store = create_basic_list_store();
 
         for i in 0..5 {
             let entry = list_store.index("test", i as isize);
@@ -406,12 +411,7 @@ mod list_tests {
 
     #[test]
     fn index_from_right() {
-        let mut list_store = ListStore::new();
-        list_store.right_push(create_kv_pair("test", "0"));
-        list_store.right_push(create_kv_pair("test", "1"));
-        list_store.right_push(create_kv_pair("test", "2"));
-        list_store.right_push(create_kv_pair("test", "3"));
-        list_store.right_push(create_kv_pair("test", "4"));
+        let list_store = create_basic_list_store();
 
         let mut str_val = 4;
         for i in (-5..0).rev() {
@@ -428,12 +428,7 @@ mod list_tests {
 
     #[test]
     fn set() {
-        let mut list_store = ListStore::new();
-        list_store.right_push(create_kv_pair("test", "0"));
-        list_store.right_push(create_kv_pair("test", "1"));
-        list_store.right_push(create_kv_pair("test", "2"));
-        list_store.right_push(create_kv_pair("test", "3"));
-        list_store.right_push(create_kv_pair("test", "4"));
+        let mut list_store = create_basic_list_store();
 
         // Set in the middle
         let mut res = list_store.set(create_kv_pair("test", "new_value"), 1);
@@ -468,5 +463,43 @@ mod list_tests {
 
         res = list_store.set(create_kv_pair("test", "new_value"), -2354);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn range() {
+        let mut list_store = create_basic_list_store();
+
+        let mut range = list_store.range("test", 1, 3);
+        assert_eq!(range.len(), 3);
+        let mut vals = range
+            .iter()
+            .map(|e| e.value.to_owned())
+            .collect::<Vec<String>>();
+
+        assert_eq!(
+            vals,
+            vec!["1".to_string(), "2".to_string(), "3".to_string()]
+        );
+
+        range = list_store.range("test", -2, -1);
+        assert_eq!(range.len(), 2);
+        vals = range
+            .iter()
+            .map(|e| e.value.to_owned())
+            .collect::<Vec<String>>();
+        assert_eq!(vals, vec!["3".to_string(), "4".to_string()]);
+
+        range = list_store.range("test", 0, 500);
+        assert_eq!(range.len(), 5);
+
+        range = list_store.range("test", -1, -5);
+        assert_eq!(range.len(), 0);
+    }
+
+    #[test]
+    fn trim() {
+        let mut list_store = create_basic_list_store();
+
+        // TODO: Test this
     }
 }
