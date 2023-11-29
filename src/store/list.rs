@@ -151,9 +151,15 @@ impl ListStore {
                 return Err(anyhow!("index out of range"));
             }
 
-            let mut split = list.split_off(target_idx as usize);
-            split.push_front(value);
-            list.append(&mut split);
+            if target_idx == 0 {
+                list.push_front(value);
+            } else if target_idx == size - 1 {
+                list.push_back(value);
+            } else {
+                let mut split = list.split_off(target_idx as usize);
+                split.push_front(value);
+                list.append(&mut split);
+            }
         }
 
         return Ok(());
@@ -418,5 +424,49 @@ mod list_tests {
 
         let entry = list_store.index("test", -324);
         assert!(entry.is_none());
+    }
+
+    #[test]
+    fn set() {
+        let mut list_store = ListStore::new();
+        list_store.right_push(create_kv_pair("test", "0"));
+        list_store.right_push(create_kv_pair("test", "1"));
+        list_store.right_push(create_kv_pair("test", "2"));
+        list_store.right_push(create_kv_pair("test", "3"));
+        list_store.right_push(create_kv_pair("test", "4"));
+
+        // Set in the middle
+        let mut res = list_store.set(create_kv_pair("test", "new_value"), 1);
+        assert!(res.is_ok());
+        assert_eq!(list_store.len("test"), 6);
+        let mut entry = list_store.index("test", 1);
+        assert!(entry.is_some());
+        let mut value = entry.unwrap().value;
+        assert_eq!(value, "new_value".to_string());
+
+        // Set at the start
+        res = list_store.set(create_kv_pair("test", "another-new-value"), 0);
+        assert!(res.is_ok());
+        assert_eq!(list_store.len("test"), 7);
+        entry = list_store.index("test", 0);
+        assert!(entry.is_some());
+        value = entry.unwrap().value;
+        assert_eq!(value, "another-new-value".to_string());
+
+        // Set at the end
+        res = list_store.set(create_kv_pair("test", "last-new-value"), -1);
+        assert!(res.is_ok());
+        assert_eq!(list_store.len("test"), 8);
+        entry = list_store.index("test", -1);
+        assert!(entry.is_some());
+        value = entry.unwrap().value;
+        assert_eq!(value, "last-new-value".to_string());
+
+        // Out of bounds errors
+        res = list_store.set(create_kv_pair("test", "new_value"), 500);
+        assert!(res.is_err());
+
+        res = list_store.set(create_kv_pair("test", "new_value"), -2354);
+        assert!(res.is_err());
     }
 }
