@@ -166,22 +166,30 @@ impl ListStore {
 
     pub fn trim(&mut self, key: impl AsRef<str>, mut start: isize, mut end: isize) {
         if let Some(list) = self.store.get_mut(key.as_ref()) {
-            let size = list.len() as isize;
-            start = idx_from_offset(list.len(), start);
-            end = idx_from_offset(list.len(), end);
-
-            if start >= size as isize || start > end {
+            let size = list.len();
+            start = idx_from_offset(size, start);
+            end = idx_from_offset(size, end);
+            if start as usize >= size || start > end {
                 self.store.remove(key.as_ref());
                 return;
             }
 
-            if end >= size {
-                end = size - 1;
-            }
-
             let mut split = list.split_off(start as usize);
-            split.split_off(end as usize - 1);
-            self.store.insert(key.as_ref().to_string(), split);
+            end = idx_from_offset(split.len(), end - start);
+            end = if end + 1 >= split.len() as isize {
+                (split.len()) as isize
+            } else {
+                end + 1
+            };
+
+            let _ = split.split_off(end as usize);
+
+            if split.len() == 0 {
+                self.store.remove("test");
+                return;
+            } else {
+                self.store.insert(key.as_ref().to_string(), split);
+            }
         }
     }
 
@@ -288,6 +296,13 @@ mod list_tests {
         list_store.right_push(create_kv_pair("test", "4"));
 
         return list_store;
+    }
+
+    fn list_to_vec(list: &LinkedList<Entry>) -> Vec<String> {
+        return list
+            .iter()
+            .map(|e| e.value.to_string())
+            .collect::<Vec<String>>();
     }
 
     #[test]
@@ -466,15 +481,12 @@ mod list_tests {
     }
 
     #[test]
-    fn range() {
-        let mut list_store = create_basic_list_store();
+    fn range_forward() {
+        let list_store = create_basic_list_store();
 
         let mut range = list_store.range("test", 1, 3);
         assert_eq!(range.len(), 3);
-        let mut vals = range
-            .iter()
-            .map(|e| e.value.to_owned())
-            .collect::<Vec<String>>();
+        let mut vals = list_to_vec(&range);
 
         assert_eq!(
             vals,
@@ -483,10 +495,7 @@ mod list_tests {
 
         range = list_store.range("test", -2, -1);
         assert_eq!(range.len(), 2);
-        vals = range
-            .iter()
-            .map(|e| e.value.to_owned())
-            .collect::<Vec<String>>();
+        vals = list_to_vec(&range);
         assert_eq!(vals, vec!["3".to_string(), "4".to_string()]);
 
         range = list_store.range("test", 0, 500);
@@ -497,9 +506,127 @@ mod list_tests {
     }
 
     #[test]
-    fn trim() {
-        let mut list_store = create_basic_list_store();
+    fn range_backwards() {
+        let list_store = create_basic_list_store();
+        let mut range = list_store.range("test", -2, -1);
+        assert_eq!(range.len(), 2);
+        let vals = list_to_vec(&range);
+        assert_eq!(vals, vec!["3".to_string(), "4".to_string()]);
 
-        // TODO: Test this
+        range = list_store.range("test", -1, -5);
+        assert_eq!(range.len(), 0);
+    }
+
+    #[test]
+    fn trim_forward() {
+        let mut list_store = create_basic_list_store();
+        list_store.trim("test", 0, 2);
+        let mut inner = list_store.store.get("test").unwrap();
+        let mut result = list_to_vec(inner);
+        assert_eq!(
+            result,
+            vec!["0".to_string(), "1".to_string(), "2".to_string()]
+        );
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", 0, 4);
+        inner = list_store.store.get("test").unwrap();
+        result = list_to_vec(inner);
+        assert_eq!(
+            result,
+            vec![
+                "0".to_string(),
+                "1".to_string(),
+                "2".to_string(),
+                "3".to_string(),
+                "4".to_string()
+            ]
+        );
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", 0, 20);
+        inner = list_store.store.get("test").unwrap();
+        result = list_to_vec(inner);
+        assert_eq!(
+            result,
+            vec![
+                "0".to_string(),
+                "1".to_string(),
+                "2".to_string(),
+                "3".to_string(),
+                "4".to_string()
+            ]
+        );
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", 3, 20);
+        inner = list_store.store.get("test").unwrap();
+        result = list_to_vec(inner);
+        assert_eq!(result, vec!["3".to_string(), "4".to_string()]);
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", 1, 3);
+        inner = list_store.store.get("test").unwrap();
+        result = list_to_vec(inner);
+        assert_eq!(
+            result,
+            vec!["1".to_string(), "2".to_string(), "3".to_string()]
+        );
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", 0, 0);
+        inner = list_store.store.get("test").unwrap();
+        result = list_to_vec(inner);
+        assert_eq!(result, vec!["0".to_string()]);
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", 3, 1);
+        let inner = list_store.store.get("test");
+        assert!(inner.is_none());
+    }
+
+    #[test]
+    fn trim_backwards() {
+        let mut list_store = create_basic_list_store();
+        list_store.trim("test", -2, -1);
+        let mut inner = list_store.store.get("test").unwrap();
+        let mut result = list_to_vec(inner);
+        assert_eq!(result, vec!["3".to_string(), "4".to_string()]);
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", -5, -1);
+        inner = list_store.store.get("test").unwrap();
+        result = list_to_vec(inner);
+        assert_eq!(
+            result,
+            vec![
+                "0".to_string(),
+                "1".to_string(),
+                "2".to_string(),
+                "3".to_string(),
+                "4".to_string()
+            ]
+        );
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", -1, -1);
+        inner = list_store.store.get("test").unwrap();
+        result = list_to_vec(inner);
+        assert_eq!(result, vec!["4".to_string()]);
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", -20, -1);
+        let inner = list_store.store.get("test");
+        assert!(inner.is_none());
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", -1, 1);
+        let inner = list_store.store.get("test");
+        assert!(inner.is_none());
+
+        list_store = create_basic_list_store();
+        list_store.trim("test", -1, -4);
+        let inner = list_store.store.get("test");
+        assert!(inner.is_none());
     }
 }
