@@ -31,11 +31,11 @@ impl ListStore {
         };
     }
 
-    pub fn left_push(&mut self, kv: KVPair) {
+    pub fn push_left(&mut self, kv: KVPair) {
         self.push(kv, ListDirection::Left);
     }
 
-    pub fn right_push(&mut self, kv: KVPair) {
+    pub fn push_right(&mut self, kv: KVPair) {
         self.push(kv, ListDirection::Right);
     }
 
@@ -58,11 +58,11 @@ impl ListStore {
         }
     }
 
-    pub fn left_pop(&mut self, key: impl AsRef<str>) -> Option<Entry> {
+    pub fn pop_left(&mut self, key: impl AsRef<str>) -> Option<Entry> {
         return self.pop(key, ListDirection::Left);
     }
 
-    pub fn right_pop(&mut self, key: impl AsRef<str>) -> Option<Entry> {
+    pub fn pop_right(&mut self, key: impl AsRef<str>) -> Option<Entry> {
         return self.pop(key, ListDirection::Right);
     }
 
@@ -164,9 +164,12 @@ impl ListStore {
         return Ok(());
     }
 
+    // Hoachin'
     pub fn trim(&mut self, key: impl AsRef<str>, mut start: isize, mut end: isize) {
         if let Some(list) = self.store.get_mut(key.as_ref()) {
             let size = list.len();
+
+            // Calculate start and end to establish limits
             start = idx_from_offset(size, start);
             end = idx_from_offset(size, end);
             if start as usize >= size || start > end {
@@ -175,6 +178,8 @@ impl ListStore {
             }
 
             let mut split = list.split_off(start as usize);
+
+            // recalculate end index and ensure it's in bounds
             end = idx_from_offset(split.len(), end - start);
             end = if end + 1 >= split.len() as isize {
                 (split.len()) as isize
@@ -228,7 +233,7 @@ impl ListStore {
                     right.pop_front();
                     list.append(&mut right);
                     total_removed += 1;
-                    count -= 1;
+                    count += 1;
 
                     if count == 0 {
                         break;
@@ -289,11 +294,20 @@ mod list_tests {
 
     fn create_basic_list_store() -> ListStore {
         let mut list_store = ListStore::new();
-        list_store.right_push(create_kv_pair("test", "0"));
-        list_store.right_push(create_kv_pair("test", "1"));
-        list_store.right_push(create_kv_pair("test", "2"));
-        list_store.right_push(create_kv_pair("test", "3"));
-        list_store.right_push(create_kv_pair("test", "4"));
+        list_store.push_right(create_kv_pair("test", "0"));
+        list_store.push_right(create_kv_pair("test", "1"));
+        list_store.push_right(create_kv_pair("test", "2"));
+        list_store.push_right(create_kv_pair("test", "3"));
+        list_store.push_right(create_kv_pair("test", "4"));
+
+        return list_store;
+    }
+
+    fn create_list_from_vec(items: Vec<impl AsRef<str>>) -> ListStore {
+        let mut list_store = ListStore::new();
+        for item in items {
+            list_store.push_right(create_kv_pair("test", item));
+        }
 
         return list_store;
     }
@@ -308,9 +322,9 @@ mod list_tests {
     #[test]
     fn push_left() {
         let mut list_store = ListStore::new();
-        list_store.left_push(create_kv_pair("test", "2"));
-        list_store.left_push(create_kv_pair("test", "1"));
-        list_store.left_push(create_kv_pair("test", "0"));
+        list_store.push_left(create_kv_pair("test", "2"));
+        list_store.push_left(create_kv_pair("test", "1"));
+        list_store.push_left(create_kv_pair("test", "0"));
 
         let inner = list_store.store.get_mut("test").unwrap();
         let mut val = inner.pop_front().unwrap().value;
@@ -326,9 +340,9 @@ mod list_tests {
     #[test]
     fn push_right() {
         let mut list_store = ListStore::new();
-        list_store.right_push(create_kv_pair("test", "0"));
-        list_store.right_push(create_kv_pair("test", "1"));
-        list_store.right_push(create_kv_pair("test", "2"));
+        list_store.push_right(create_kv_pair("test", "0"));
+        list_store.push_right(create_kv_pair("test", "1"));
+        list_store.push_right(create_kv_pair("test", "2"));
 
         let inner = list_store.store.get_mut("test").unwrap();
         let mut val = inner.pop_front().unwrap().value;
@@ -344,9 +358,9 @@ mod list_tests {
     #[test]
     fn length() {
         let mut list_store = ListStore::new();
-        list_store.right_push(create_kv_pair("test", "0"));
-        list_store.right_push(create_kv_pair("test", "1"));
-        list_store.right_push(create_kv_pair("test", "2"));
+        list_store.push_right(create_kv_pair("test", "0"));
+        list_store.push_right(create_kv_pair("test", "1"));
+        list_store.push_right(create_kv_pair("test", "2"));
 
         assert_eq!(list_store.len("test"), 3);
     }
@@ -354,58 +368,58 @@ mod list_tests {
     #[test]
     fn pop_left() {
         let mut list_store = ListStore::new();
-        list_store.right_push(create_kv_pair("test", "0"));
-        list_store.right_push(create_kv_pair("test", "1"));
-        list_store.right_push(create_kv_pair("test", "2"));
+        list_store.push_right(create_kv_pair("test", "0"));
+        list_store.push_right(create_kv_pair("test", "1"));
+        list_store.push_right(create_kv_pair("test", "2"));
 
-        let mut entry = list_store.left_pop("test");
+        let mut entry = list_store.pop_left("test");
         assert!(entry.is_some());
         let mut value = entry.unwrap().value;
         assert_eq!(value, "0".to_string());
         assert_eq!(list_store.len("test"), 2);
 
-        entry = list_store.left_pop("test");
+        entry = list_store.pop_left("test");
         assert!(entry.is_some());
         value = entry.unwrap().value;
         assert_eq!(value, "1".to_string());
         assert_eq!(list_store.len("test"), 1);
 
-        entry = list_store.left_pop("test");
+        entry = list_store.pop_left("test");
         assert!(entry.is_some());
         value = entry.unwrap().value;
         assert_eq!(value, "2".to_string());
         assert_eq!(list_store.len("test"), 0);
 
-        entry = list_store.left_pop("test");
+        entry = list_store.pop_left("test");
         assert!(entry.is_none());
     }
 
     #[test]
     fn pop_right() {
         let mut list_store = ListStore::new();
-        list_store.right_push(create_kv_pair("test", "0"));
-        list_store.right_push(create_kv_pair("test", "1"));
-        list_store.right_push(create_kv_pair("test", "2"));
+        list_store.push_right(create_kv_pair("test", "0"));
+        list_store.push_right(create_kv_pair("test", "1"));
+        list_store.push_right(create_kv_pair("test", "2"));
 
-        let mut entry = list_store.right_pop("test");
+        let mut entry = list_store.pop_right("test");
         assert!(entry.is_some());
         let mut value = entry.unwrap().value;
         assert_eq!(value, "2".to_string());
         assert_eq!(list_store.len("test"), 2);
 
-        entry = list_store.right_pop("test");
+        entry = list_store.pop_right("test");
         assert!(entry.is_some());
         value = entry.unwrap().value;
         assert_eq!(value, "1".to_string());
         assert_eq!(list_store.len("test"), 1);
 
-        entry = list_store.right_pop("test");
+        entry = list_store.pop_right("test");
         assert!(entry.is_some());
         value = entry.unwrap().value;
         assert_eq!(value, "0".to_string());
         assert_eq!(list_store.len("test"), 0);
 
-        entry = list_store.right_pop("test");
+        entry = list_store.pop_right("test");
         assert!(entry.is_none());
     }
 
@@ -628,5 +642,96 @@ mod list_tests {
         list_store.trim("test", -1, -4);
         let inner = list_store.store.get("test");
         assert!(inner.is_none());
+    }
+
+    #[test]
+    fn remove_all() {
+        let mut list_store = create_list_from_vec(vec!["0", "1", "2", "2", "2", "3"]);
+        let mut removed = list_store.remove("test", "2", 0);
+        assert_eq!(removed, 3);
+        let mut list = list_store.store.get("test").unwrap();
+        let mut expected_list = list_to_vec(list);
+        assert_eq!(expected_list.len(), 3);
+        assert_eq!(
+            expected_list,
+            vec!["0".to_string(), "1".to_string(), "3".to_string()]
+        );
+
+        list_store = create_list_from_vec(vec!["0", "1", "2"]);
+        removed = list_store.remove("test", "3", 0);
+        assert_eq!(removed, 0);
+        list = list_store.store.get("test").unwrap();
+        expected_list = list_to_vec(list);
+        assert_eq!(expected_list.len(), 3);
+        assert_eq!(
+            expected_list,
+            vec!["0".to_string(), "1".to_string(), "2".to_string()]
+        );
+
+        list_store = create_list_from_vec(vec!["0"]);
+        removed = list_store.remove("test", "0", 0);
+        assert_eq!(removed, 1);
+        let list = list_store.store.get("test");
+        assert!(list.is_none());
+    }
+
+    #[test]
+    fn remove_from_head() {
+        let mut list_store = create_list_from_vec(vec!["0", "1", "2", "2", "2", "3"]);
+        let mut removed = list_store.remove("test", "2", 1);
+        assert_eq!(removed, 1);
+        let mut list = list_store.store.get("test").unwrap();
+        let mut expected_list = list_to_vec(list);
+        assert_eq!(expected_list.len(), 5);
+        assert_eq!(
+            expected_list,
+            vec![
+                "0".to_string(),
+                "1".to_string(),
+                "2".to_string(),
+                "2".to_string(),
+                "3".to_string()
+            ]
+        );
+
+        removed = list_store.remove("test", "2", 2);
+        assert_eq!(removed, 2);
+        list = list_store.store.get("test").unwrap();
+        expected_list = list_to_vec(list);
+        assert_eq!(expected_list.len(), 3);
+        assert_eq!(
+            expected_list,
+            vec!["0".to_string(), "1".to_string(), "3".to_string()]
+        );
+    }
+
+    #[test]
+    fn remove_from_tail() {
+        let mut list_store = create_list_from_vec(vec!["0", "1", "2", "2", "2", "3"]);
+        let mut removed = list_store.remove("test", "2", -1);
+        assert_eq!(removed, 1);
+        let mut list = list_store.store.get("test").unwrap();
+        let mut expected_list = list_to_vec(list);
+        assert_eq!(expected_list.len(), 5);
+        assert_eq!(
+            expected_list,
+            vec![
+                "0".to_string(),
+                "1".to_string(),
+                "2".to_string(),
+                "2".to_string(),
+                "3".to_string()
+            ]
+        );
+
+        removed = list_store.remove("test", "2", -2);
+        assert_eq!(removed, 2);
+        list = list_store.store.get("test").unwrap();
+        expected_list = list_to_vec(list);
+        assert_eq!(expected_list.len(), 3);
+        assert_eq!(
+            expected_list,
+            vec!["0".to_string(), "1".to_string(), "3".to_string()]
+        );
     }
 }
