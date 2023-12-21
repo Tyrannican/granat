@@ -1,7 +1,8 @@
 pub mod entry;
 pub mod general;
 pub mod list;
+pub mod set;
 
-use entry::Entry;
+use entry::StoreEntry;
 
-pub type KVPair = (String, Entry);
+pub type KVPair = (String, StoreEntry);

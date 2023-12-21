@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, LinkedList};
 
-use crate::store::{entry::Entry, KVPair};
+use crate::store::{entry::StoreEntry, KVPair};
 
 fn idx_from_offset(list_size: usize, idx: isize) -> isize {
     if idx >= 0 {
@@ -21,7 +21,7 @@ enum ListDirection {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ListStore {
-    pub store: HashMap<String, LinkedList<Entry>>,
+    pub store: HashMap<String, LinkedList<StoreEntry>>,
 }
 
 impl ListStore {
@@ -58,15 +58,15 @@ impl ListStore {
         }
     }
 
-    pub fn pop_left(&mut self, key: impl AsRef<str>) -> Option<Entry> {
+    pub fn pop_left(&mut self, key: impl AsRef<str>) -> Option<StoreEntry> {
         return self.pop(key, ListDirection::Left);
     }
 
-    pub fn pop_right(&mut self, key: impl AsRef<str>) -> Option<Entry> {
+    pub fn pop_right(&mut self, key: impl AsRef<str>) -> Option<StoreEntry> {
         return self.pop(key, ListDirection::Right);
     }
 
-    fn pop(&mut self, key: impl AsRef<str>, dir: ListDirection) -> Option<Entry> {
+    fn pop(&mut self, key: impl AsRef<str>, dir: ListDirection) -> Option<StoreEntry> {
         if let Some(list) = self.store.get_mut(key.as_ref()) {
             let item = match dir {
                 ListDirection::Left => list.pop_front(),
@@ -83,7 +83,7 @@ impl ListStore {
         return None;
     }
 
-    pub fn index(&self, key: impl AsRef<str>, idx: isize) -> Option<Entry> {
+    pub fn index(&self, key: impl AsRef<str>, idx: isize) -> Option<StoreEntry> {
         if let Some(list) = self.store.get(key.as_ref()) {
             let target_idx = idx_from_offset(list.len(), idx);
             if target_idx < 0 {
@@ -113,7 +113,7 @@ impl ListStore {
         key: impl AsRef<str>,
         mut start: isize,
         mut end: isize,
-    ) -> LinkedList<Entry> {
+    ) -> LinkedList<StoreEntry> {
         let mut ll = LinkedList::new();
 
         if let Some(list) = self.store.get(key.as_ref()) {
@@ -250,7 +250,11 @@ impl ListStore {
     }
 }
 
-fn find_entry(list: &mut LinkedList<Entry>, target: &String, dir: ListDirection) -> Option<usize> {
+fn find_entry(
+    list: &mut LinkedList<StoreEntry>,
+    target: &String,
+    dir: ListDirection,
+) -> Option<usize> {
     match dir {
         ListDirection::Left => {
             for (pos, entry) in list.iter().enumerate() {
@@ -289,7 +293,7 @@ mod list_tests {
     //
 
     fn create_kv_pair(key: impl AsRef<str>, value: impl AsRef<str>) -> KVPair {
-        return (key.as_ref().to_string(), Entry::new(value));
+        return (key.as_ref().to_string(), StoreEntry::new(value));
     }
 
     fn create_basic_list_store() -> ListStore {
@@ -312,7 +316,7 @@ mod list_tests {
         return list_store;
     }
 
-    fn list_to_vec(list: &LinkedList<Entry>) -> Vec<String> {
+    fn list_to_vec(list: &LinkedList<StoreEntry>) -> Vec<String> {
         return list
             .iter()
             .map(|e| e.value.to_string())

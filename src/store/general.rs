@@ -3,12 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 
-use crate::store::entry::Entry;
+use crate::store::entry::StoreEntry;
 use crate::store::KVPair;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GeneralStore {
-    pub store: HashMap<String, Entry>,
+    pub store: HashMap<String, StoreEntry>,
 }
 
 impl GeneralStore {
@@ -33,7 +33,7 @@ impl GeneralStore {
         return Ok(());
     }
 
-    pub fn get(&self, key: impl AsRef<str>) -> Option<Entry> {
+    pub fn get(&self, key: impl AsRef<str>) -> Option<StoreEntry> {
         if let Some(raw) = self.store.get(key.as_ref()) {
             return Some(raw.clone());
         }
@@ -41,7 +41,7 @@ impl GeneralStore {
         return None;
     }
 
-    pub fn get_multiple(&self, keys: Vec<impl AsRef<str>>) -> Vec<Option<Entry>> {
+    pub fn get_multiple(&self, keys: Vec<impl AsRef<str>>) -> Vec<Option<StoreEntry>> {
         return keys
             .into_iter()
             .map(|k| {
@@ -51,7 +51,7 @@ impl GeneralStore {
 
                 return None;
             })
-            .collect::<Vec<Option<Entry>>>();
+            .collect::<Vec<Option<StoreEntry>>>();
     }
 
     pub fn increment(&mut self, key: impl AsRef<str>, incr: i64) -> Result<i64> {
@@ -73,7 +73,7 @@ impl GeneralStore {
         let key_value = key.as_ref().to_string();
 
         self.store
-            .insert(key_value, Entry::new(initial_value.to_string()));
+            .insert(key_value, StoreEntry::new(initial_value.to_string()));
 
         return Ok(initial_value);
     }
@@ -96,7 +96,7 @@ impl GeneralStore {
         let initial_value = 0. + incr;
         let key_value = key.as_ref().to_string();
         self.store
-            .insert(key_value, Entry::new(initial_value.to_string()));
+            .insert(key_value, StoreEntry::new(initial_value.to_string()));
 
         return Ok(initial_value);
     }
@@ -107,7 +107,7 @@ mod general_store_tests {
     use super::*;
 
     fn create_kv(key: &str, value: &str) -> KVPair {
-        return (key.to_string(), Entry::new(value));
+        return (key.to_string(), StoreEntry::new(value));
     }
 
     #[test]

@@ -4,20 +4,20 @@ use anyhow::{anyhow, Result};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq)]
 pub enum ExpiryState {
     Expired,
     Active(i64),
     NoExpiry,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Entry {
+#[derive(Debug, Hash, Deserialize, Serialize, PartialEq, Eq)]
+pub struct StoreEntry {
     pub value: String,
     pub expiry: ExpiryState,
 }
 
-impl Entry {
+impl StoreEntry {
     pub fn new(value: impl AsRef<str>) -> Self {
         return Self {
             value: value.as_ref().to_string(),
@@ -65,7 +65,7 @@ impl Entry {
     }
 }
 
-impl Clone for Entry {
+impl Clone for StoreEntry {
     fn clone(&self) -> Self {
         Self {
             value: self.value.clone(),
@@ -74,7 +74,7 @@ impl Clone for Entry {
     }
 }
 
-impl fmt::Display for Entry {
+impl fmt::Display for StoreEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value.to_string())
     }
@@ -93,15 +93,15 @@ mod entry_tests {
 
     #[test]
     fn create_a_basic_entry() {
-        let mut ev = Entry::new("1234567");
+        let mut ev = StoreEntry::new("1234567");
         assert_eq!(ev.value, "1234567".to_string());
         assert!(ev.expiry == ExpiryState::NoExpiry);
 
-        ev = Entry::new("123456.7");
+        ev = StoreEntry::new("123456.7");
         assert_eq!(ev.value, "123456.7".to_string());
         assert!(ev.expiry == ExpiryState::NoExpiry);
 
-        ev = Entry::new("i am a string");
+        ev = StoreEntry::new("i am a string");
         assert_eq!(ev.value, "i am a string".to_string());
         assert!(ev.expiry == ExpiryState::NoExpiry);
     }
@@ -110,7 +110,7 @@ mod entry_tests {
     #[ignore]
     /// Takes ages to run
     fn create_entry_with_expiry() {
-        let mut entry = Entry::new("five hundred").expires_in(5);
+        let mut entry = StoreEntry::new("five hundred").expires_in(5);
         assert_eq!(entry.ttl(), ExpiryState::Active(Utc::now().timestamp() + 5));
 
         while entry.ttl() != ExpiryState::Expired {
@@ -127,7 +127,7 @@ mod entry_tests {
             message: "some message".to_string(),
         };
 
-        let entry = Entry::from_obj(&td);
+        let entry = StoreEntry::from_obj(&td);
         assert!(entry.is_ok());
         let inner = entry.unwrap().value;
 
@@ -142,7 +142,7 @@ mod entry_tests {
             message: "some message".to_string(),
         };
 
-        let entry = Entry::from_obj(&td);
+        let entry = StoreEntry::from_obj(&td);
         assert!(entry.is_ok());
 
         let inner = entry.unwrap();
@@ -158,7 +158,7 @@ mod entry_tests {
 
     #[test]
     fn ensure_none_when_converting_none_object() {
-        let entry = Entry::new("5");
+        let entry = StoreEntry::new("5");
         let result = entry.to_obj::<TestDataStruct>();
 
         assert!(result.is_err());
