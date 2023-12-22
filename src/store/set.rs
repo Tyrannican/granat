@@ -52,13 +52,26 @@ impl SetStore {
             .map(|e| e.to_owned())
             .collect::<Vec<StoreEntry>>();
     }
+
+    pub fn diff_store(
+        &mut self,
+        dst: impl AsRef<str>,
+        target: impl AsRef<str>,
+        comps: Vec<impl AsRef<str>>,
+    ) {
+        let diffs = self.diff(target, comps);
+        let hs = diffs.into_iter().collect::<HashSet<StoreEntry>>();
+        if !hs.is_empty() {
+            self.store.insert(dst.as_ref().to_string(), hs);
+        }
+    }
 }
 
 /*
 * Add - DONE
 * Cardinality - Number of items in a set DONE
-* Difference - Set difference
-* DiffStore - Store difference between sets in a new entry
+* Difference - Set difference DONE
+* DiffStore - Store difference between sets in a new entry DONE
 * Intersection - Intersection of different sets
 * InterStore - Intersection but store result
 * IsMember - Check if an entry is in the given set
@@ -164,5 +177,24 @@ mod set_tests {
         // Empty
         let diff = ss.diff("empty1", vec!["empty2"]);
         assert!(diff.is_empty());
+    }
+
+    #[test]
+    fn diffstore() {
+        let mut ss = SetStore::new();
+
+        ss.add(create_kv_pair("table1", "a"));
+        ss.add(create_kv_pair("table1", "b"));
+        ss.add(create_kv_pair("table1", "c"));
+        ss.add(create_kv_pair("table2", "a"));
+        ss.add(create_kv_pair("table2", "c"));
+        ss.add(create_kv_pair("table2", "e"));
+
+        ss.diff_store("table3", "table1", vec!["table2"]);
+        assert!(ss.store.contains_key("table3"));
+
+        let hs = ss.store.get("table3").unwrap();
+        assert_eq!(hs.len(), 1);
+        assert!(hs.contains(&StoreEntry::new("b".to_string())));
     }
 }
