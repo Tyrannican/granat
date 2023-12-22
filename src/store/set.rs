@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::store::entry::StoreEntry;
@@ -36,16 +35,22 @@ impl SetStore {
         return 0;
     }
 
-    pub fn diff(&self, lhs: impl AsRef<str>, rhs: impl AsRef<str>) -> HashSet<StoreEntry> {
+    pub fn diff(&self, target: impl AsRef<str>, comps: Vec<impl AsRef<str>>) -> Vec<StoreEntry> {
+        let mut combo = HashSet::new();
         let ph = HashSet::new();
-        let left = self.store.get(lhs.as_ref()).unwrap_or(&ph);
-        let right = self.store.get(rhs.as_ref()).unwrap_or(&ph);
+        let target_set = self.store.get(target.as_ref()).unwrap_or(&ph);
 
-        let result = left.difference(right);
-        return result
+        for comp in comps.iter() {
+            let comp_set = self.store.get(comp.as_ref()).unwrap_or(&ph);
+            combo.extend(comp_set.clone().into_iter());
+        }
+
+        let diff = target_set.difference(&combo);
+
+        return diff
             .into_iter()
-            .map(|e| e.clone())
-            .collect::<HashSet<StoreEntry>>();
+            .map(|e| e.to_owned())
+            .collect::<Vec<StoreEntry>>();
     }
 }
 
@@ -109,5 +114,55 @@ mod set_tests {
     #[test]
     fn difference() {
         let mut ss = SetStore::new();
+        let convert = |diff: &Vec<StoreEntry>| {
+            let mut result = diff
+                .iter()
+                .map(|i| i.value.clone())
+                .collect::<Vec<String>>();
+            result.sort();
+
+            result
+        };
+
+        // Single diff
+        ss.add(create_kv_pair("singlediff1", "a"));
+        ss.add(create_kv_pair("singlediff1", "b"));
+        ss.add(create_kv_pair("singlediff1", "c"));
+        ss.add(create_kv_pair("singlediff2", "a"));
+        ss.add(create_kv_pair("singlediff2", "c"));
+        ss.add(create_kv_pair("singlediff2", "e"));
+
+        let diff = ss.diff("singlediff1", vec!["singlediff2"]);
+        let result = convert(&diff);
+        assert_eq!(result, vec!["b"]);
+
+        // Multi Diff
+        ss.add(create_kv_pair("multidiff1", "a"));
+        ss.add(create_kv_pair("multidiff1", "b"));
+        ss.add(create_kv_pair("multidiff1", "c"));
+        ss.add(create_kv_pair("multidiff1", "d"));
+        ss.add(create_kv_pair("multidiff2", "c"));
+        ss.add(create_kv_pair("multidiff3", "a"));
+        ss.add(create_kv_pair("multidiff3", "c"));
+        ss.add(create_kv_pair("multidiff3", "e"));
+
+        let diff = ss.diff("multidiff1", vec!["multidiff2", "multidiff3"]);
+        let result = convert(&diff);
+        assert_eq!(result, vec!["b".to_string(), "d".to_string()]);
+
+        // No comparisons
+        ss.add(create_kv_pair("nocomp1", "a"));
+
+        let diff = ss.diff("nocomp1", vec!["nocomp2"]);
+        let result = convert(&diff);
+        assert_eq!(result, vec!["a"]);
+
+        let diff = ss.diff("nocomp2", vec!["nocomp1"]);
+        let result = convert(&diff);
+        assert!(result.is_empty());
+
+        // Empty
+        let diff = ss.diff("empty1", vec!["empty2"]);
+        assert!(diff.is_empty());
     }
 }
