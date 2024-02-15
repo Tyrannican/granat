@@ -288,9 +288,6 @@ mod list_tests {
     // Trim ✔
     // Range ✔
     // Remove ✔
-    //
-    // TODO: Actually write the tests
-    //
 
     fn create_kv_pair(key: impl AsRef<str>, value: impl AsRef<str>) -> KVPair {
         return (key.as_ref().to_string(), StoreEntry::new(value));
