@@ -1,16 +1,29 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
-use std::collections::{HashMap, LinkedList, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use crate::store::{entry::StoreEntry, KVPair};
 
-fn idx_from_offset(list_size: usize, idx: isize) -> isize {
-    if idx >= 0 {
-        return idx;
-    };
+/// Performs that magic when giving a -ve num, converts it to +ve
+///
+/// Give it an idx (+ve or -ve) and check if it's in range
+/// (-ve being the from the back)
+fn idx_from_offset(list_size: usize, idx: isize) -> Option<usize> {
+    if idx < 0 {
+        let new_idx = list_size as isize + idx;
+        if new_idx < 0 {
+            return None;
+        }
 
-    return list_size as isize + idx;
+        return Some(new_idx as usize);
+    }
+
+    if (idx as usize) < list_size {
+        return Some(idx as usize);
+    }
+
+    None
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -83,21 +96,86 @@ impl ListStore {
         None
     }
 
-    pub fn index(&self, key: impl AsRef<str>, idx: isize) -> Option<StoreEntry> {
+    pub fn index(&self, key: impl AsRef<str>, idx: isize) -> Option<&StoreEntry> {
+        if let Some(list) = self.store.get(key.as_ref()) {
+            match idx_from_offset(list.len(), idx) {
+                Some(idx) => return list.get(idx),
+                None => return None,
+            }
+        }
+
         None
     }
 
     pub fn len(&self, key: impl AsRef<str>) -> usize {
+        if let Some(list) = self.store.get(key.as_ref()) {
+            return list.len();
+        }
+
         0
     }
 
-    pub fn range(&self, key: impl AsRef<str>, mut start: isize, mut end: isize) {}
+    /// This will always return a valid range for a list if it exists
+    /// If start is invalid, it will default 0
+    /// If end is invalid, it will default to the last element of the list
+    pub fn range(&self, key: impl AsRef<str>, start: isize, end: isize) -> Vec<StoreEntry> {
+        if let Some(list) = self.store.get(key.as_ref()) {
+            let size = list.len();
+            let start = match idx_from_offset(size, start) {
+                Some(idx) => idx,
+                None => 0,
+            };
 
-    pub fn set(&mut self, kv: KVPair, idx: isize) -> Result<()> {
-        Ok(())
+            let end = match idx_from_offset(size, end) {
+                Some(end) => end,
+                None => size - 1,
+            };
+
+            return list
+                .range(start..=end)
+                .map(|s| s.clone())
+                .collect::<Vec<StoreEntry>>();
+        }
+
+        vec![]
     }
 
-    pub fn trim(&mut self, key: impl AsRef<str>, mut start: isize, mut end: isize) {}
+    pub fn set(&mut self, kv: KVPair, idx: isize) -> Result<()> {
+        let (key, value) = kv;
+        if let Some(list) = self.store.get_mut(&key) {
+            match idx_from_offset(list.len(), idx) {
+                Some(idx) => {
+                    list[idx] = value;
+                    return Ok(());
+                }
+                None => return Err(anyhow!("index out of range")),
+            }
+        }
+
+        Err(anyhow!(format!("no list for key {key}")))
+    }
+
+    pub fn trim(&mut self, key: impl AsRef<str>, start: isize, end: isize) {
+        if let Some(list) = self.store.get_mut(key.as_ref()) {
+            let size = list.len();
+            let start = match idx_from_offset(size, start) {
+                Some(idx) => idx,
+                None => 0,
+            };
+
+            let end = match idx_from_offset(size, end) {
+                Some(idx) => idx,
+                None => size - 1,
+            };
+
+            let trimmed = list
+                .range(start..=end)
+                .map(|s| s.clone())
+                .collect::<VecDeque<StoreEntry>>();
+
+            self.store.insert(key.as_ref().to_string(), trimmed);
+        }
+    }
 
     pub fn remove(
         &mut self,
@@ -105,6 +183,11 @@ impl ListStore {
         value: impl AsRef<str>,
         mut count: isize,
     ) -> usize {
+        // TODO: Start here
+        if let Some(list) = self.store.get_mut(key.as_ref()) {
+            //
+        }
+
         0
     }
 }
@@ -146,7 +229,7 @@ mod list_tests {
         return list_store;
     }
 
-    fn list_to_vec(list: &LinkedList<StoreEntry>) -> Vec<String> {
+    fn list_to_vec(list: &VecDeque<StoreEntry>) -> Vec<String> {
         return list
             .iter()
             .map(|e| e.value.to_string())
