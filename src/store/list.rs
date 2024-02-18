@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
-use std::collections::{HashMap, LinkedList};
+use std::collections::{HashMap, LinkedList, VecDeque};
 
 use crate::store::{entry::StoreEntry, KVPair};
 
@@ -13,7 +13,7 @@ fn idx_from_offset(list_size: usize, idx: isize) -> isize {
     return list_size as isize + idx;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 enum ListDirection {
     Left,
     Right,
@@ -21,7 +21,7 @@ enum ListDirection {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ListStore {
-    pub store: HashMap<String, LinkedList<StoreEntry>>,
+    pub store: HashMap<String, VecDeque<StoreEntry>>,
 }
 
 impl ListStore {
@@ -32,171 +32,72 @@ impl ListStore {
     }
 
     pub fn push_left(&mut self, kv: KVPair) {
-        self.push(kv, ListDirection::Left);
+        self.push(kv, ListDirection::Left)
     }
 
     pub fn push_right(&mut self, kv: KVPair) {
         self.push(kv, ListDirection::Right);
     }
 
-    fn push(&mut self, kv: KVPair, dir: ListDirection) {
+    fn push(&mut self, kv: KVPair, direction: ListDirection) {
         let (key, value) = kv;
 
         if let Some(list) = self.store.get_mut(&key) {
-            match dir {
+            match direction {
                 ListDirection::Left => list.push_front(value),
                 ListDirection::Right => list.push_back(value),
             }
         } else {
-            let mut list = LinkedList::new();
-            match dir {
+            let mut list = VecDeque::new();
+            match direction {
                 ListDirection::Left => list.push_front(value),
                 ListDirection::Right => list.push_back(value),
             }
 
-            self.store.insert(key.to_string(), list);
+            self.store.insert(key, list);
         }
     }
 
     pub fn pop_left(&mut self, key: impl AsRef<str>) -> Option<StoreEntry> {
-        return self.pop(key, ListDirection::Left);
+        self.pop(key, ListDirection::Left)
     }
 
     pub fn pop_right(&mut self, key: impl AsRef<str>) -> Option<StoreEntry> {
-        return self.pop(key, ListDirection::Right);
+        self.pop(key, ListDirection::Right)
     }
 
     fn pop(&mut self, key: impl AsRef<str>, dir: ListDirection) -> Option<StoreEntry> {
         if let Some(list) = self.store.get_mut(key.as_ref()) {
-            let item = match dir {
+            let result = match dir {
                 ListDirection::Left => list.pop_front(),
                 ListDirection::Right => list.pop_back(),
             };
 
-            if list.len() == 0 {
+            if list.is_empty() {
                 self.store.remove(key.as_ref());
             }
 
-            return item;
+            return result;
         }
 
-        return None;
+        None
     }
 
     pub fn index(&self, key: impl AsRef<str>, idx: isize) -> Option<StoreEntry> {
-        if let Some(list) = self.store.get(key.as_ref()) {
-            let target_idx = idx_from_offset(list.len(), idx);
-            if target_idx < 0 {
-                return None;
-            }
-
-            for (i, item) in list.iter().enumerate() {
-                if target_idx as usize == i {
-                    return Some(item.clone());
-                }
-            }
-        }
-
-        return None;
+        None
     }
 
     pub fn len(&self, key: impl AsRef<str>) -> usize {
-        if let Some(list) = self.store.get(key.as_ref()) {
-            return list.len();
-        }
-
-        return 0;
+        0
     }
 
-    pub fn range(
-        &self,
-        key: impl AsRef<str>,
-        mut start: isize,
-        mut end: isize,
-    ) -> LinkedList<StoreEntry> {
-        let mut ll = LinkedList::new();
-
-        if let Some(list) = self.store.get(key.as_ref()) {
-            start = idx_from_offset(list.len(), start);
-            end = idx_from_offset(list.len(), end);
-            let size = list.len() as isize;
-
-            if start >= size || start > end {
-                return ll;
-            }
-
-            if end >= size {
-                end = size - 1;
-            }
-
-            for (i, item) in list.iter().enumerate() {
-                if i as isize >= start && i as isize <= end {
-                    ll.push_back(item.clone());
-                }
-            }
-        }
-
-        return ll;
-    }
+    pub fn range(&self, key: impl AsRef<str>, mut start: isize, mut end: isize) {}
 
     pub fn set(&mut self, kv: KVPair, idx: isize) -> Result<()> {
-        let (key, value) = kv;
-
-        if let Some(list) = self.store.get_mut(&key) {
-            let size = list.len() as isize;
-            let target_idx = idx_from_offset(list.len(), idx);
-
-            if target_idx < 0 || target_idx > size {
-                return Err(anyhow!("index out of range"));
-            }
-
-            if target_idx == 0 {
-                list.push_front(value);
-            } else if target_idx == size - 1 {
-                list.push_back(value);
-            } else {
-                let mut split = list.split_off(target_idx as usize);
-                split.push_front(value);
-                list.append(&mut split);
-            }
-        }
-
-        return Ok(());
+        Ok(())
     }
 
-    // Hoachin'
-    pub fn trim(&mut self, key: impl AsRef<str>, mut start: isize, mut end: isize) {
-        if let Some(list) = self.store.get_mut(key.as_ref()) {
-            let size = list.len();
-
-            // Calculate start and end to establish limits
-            start = idx_from_offset(size, start);
-            end = idx_from_offset(size, end);
-            if start as usize >= size || start > end {
-                self.store.remove(key.as_ref());
-                return;
-            }
-
-            let mut split = list.split_off(start as usize);
-
-            // recalculate end index and ensure it's in bounds
-            end = idx_from_offset(split.len(), end - start);
-            end = if end + 1 >= split.len() as isize {
-                (split.len()) as isize
-            } else {
-                end + 1
-            };
-
-            let _ = split.split_off(end as usize);
-
-            if split.len() == 0 {
-                self.store.remove("test");
-                return;
-            } else {
-                self.store.insert(key.as_ref().to_string(), split);
-            }
-        }
-    }
+    pub fn trim(&mut self, key: impl AsRef<str>, mut start: isize, mut end: isize) {}
 
     pub fn remove(
         &mut self,
@@ -204,76 +105,8 @@ impl ListStore {
         value: impl AsRef<str>,
         mut count: isize,
     ) -> usize {
-        let mut total_removed = 0;
-        if let Some(list) = self.store.get_mut(key.as_ref()) {
-            let target = value.as_ref().to_string();
-
-            if count == 0 {
-                while let Some(idx) = find_entry(list, &target, ListDirection::Left) {
-                    let mut right = list.split_off(idx);
-                    right.pop_front();
-                    list.append(&mut right);
-                    total_removed += 1;
-                }
-            } else if count > 0 {
-                while let Some(idx) = find_entry(list, &target, ListDirection::Left) {
-                    let mut right = list.split_off(idx);
-                    right.pop_front();
-                    list.append(&mut right);
-                    total_removed += 1;
-                    count -= 1;
-
-                    if count == 0 {
-                        break;
-                    }
-                }
-            } else {
-                while let Some(idx) = find_entry(list, &target, ListDirection::Right) {
-                    let mut right = list.split_off(idx);
-                    right.pop_front();
-                    list.append(&mut right);
-                    total_removed += 1;
-                    count += 1;
-
-                    if count == 0 {
-                        break;
-                    }
-                }
-            }
-
-            if list.len() == 0 {
-                self.store.remove(key.as_ref());
-            }
-        }
-
-        return total_removed;
+        0
     }
-}
-
-fn find_entry(
-    list: &mut LinkedList<StoreEntry>,
-    target: &String,
-    dir: ListDirection,
-) -> Option<usize> {
-    match dir {
-        ListDirection::Left => {
-            for (pos, entry) in list.iter().enumerate() {
-                if &entry.value == target {
-                    return Some(pos);
-                }
-            }
-        }
-        ListDirection::Right => {
-            let offset = list.len() - 1;
-            for (pos, entry) in list.iter().rev().enumerate() {
-                if &entry.value == target {
-                    return Some(offset - pos);
-                }
-            }
-        }
-    }
-
-    None
 }
 
 #[cfg(test)]
