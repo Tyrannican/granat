@@ -15,6 +15,7 @@ pub type KVPair = (String, StoreEntry);
 //      * Retrieve from store
 // 2. You can use async
 //      * Some kind of queue system?
+//      * Maybe a write queue and allow readers a reference to the underlying data
 //      * Means things are _eventually_ consistent
 //      * i.e. queue an update and process it accordingly
 //      * Might need a separate worker thread to pull from the queue?
